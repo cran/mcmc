@@ -2,14 +2,13 @@
 ### chunk number 1: foo
 ###################################################
 options(keep.source = TRUE, width = 60)
+foo <- packageDescription("mcmc")
 
 
 ###################################################
 ### chunk number 2: frequentist
 ###################################################
-foo <- read.table(url("http://www.stat.umn.edu/geyer/PhD/F03/logit.txt"),
-    header = TRUE)
-# foo <- read.table("logit.txt", header = TRUE)
+foo <- read.table("logit.txt", header = TRUE)
 out <- glm(y ~ x1 + x2 + x3 + x4, data = foo,
     family = binomial())
 summary(out)
@@ -123,14 +122,37 @@ mu.mcse
 
 
 ###################################################
-### chunk number 15: metropolis-mcse-foo
+### chunk number 15: metropolis-mcse-sigmasq
+###################################################
+u <- out$batch[ , 1:5]
+v <- out$batch[ , 6:10]
+ubar <- apply(u, 2, mean)
+vbar <- apply(v, 2, mean)
+deltau <- sweep(u, 2, ubar)
+deltav <- sweep(v, 2, vbar)
+foo <- sweep(deltav, 2, ubar, "*")
+sigmasq.mcse <- sqrt(apply((deltav - 2 * foo)^2, 2, mean) / out$nbatch)
+sigmasq.mcse
+
+
+###################################################
+### chunk number 16: metropolis-mcse-sigmasq-too
+###################################################
+sqrt(mean(((v[ , 2] - vbar[2]) - 2 * ubar[2] * (u[ , 2] - ubar[2]))^2) /
+    out$nbatch)
+
+stop()
+
+
+###################################################
+### chunk number 17: metropolis-mcse-foo
 ###################################################
 apply(out$batch[ , 6:10], 2, mean) - mu^2
 apply(sweep(out$batch[ , 6:10], 2, mu^2), 2, mean)
 
 
 ###################################################
-### chunk number 16: metropolis-mcse-sigmasq
+### chunk number 18: metropolis-mcse-sigmasq
 ###################################################
 sigmasq.mcse <- apply(sweep(out$batch[ , 6:10], 2, mu^2), 2, sd) /
     sqrt(out$nbatch)
@@ -138,7 +160,7 @@ sigmasq.mcse
 
 
 ###################################################
-### chunk number 17: metropolis-mcse-sigma
+### chunk number 19: metropolis-mcse-sigma
 ###################################################
 sigma <- sqrt(sigmasq)
 sigma.mcse <- sigmasq.mcse / (2 * sigma)
@@ -147,7 +169,7 @@ sigma.mcse
 
 
 ###################################################
-### chunk number 18: metropolis-try-5
+### chunk number 20: metropolis-try-5
 ###################################################
 out <- metrop(out, nbatch = 5e2, blen = 400, x = x, y = y)
 out$accept
@@ -169,7 +191,7 @@ sigma.mcse
 
 
 ###################################################
-### chunk number 19: tab1
+### chunk number 21: tab1
 ###################################################
 foo <- rbind(mu, mu.mcse)
 dimnames(foo) <- list(c("estimate", "MCSE"),
@@ -180,7 +202,7 @@ print(xtable(foo, digits = rep(4, 6),
 
 
 ###################################################
-### chunk number 20: tab1
+### chunk number 22: tab1
 ###################################################
 foo <- rbind(sigmasq, sigmasq.mcse)
 dimnames(foo) <- list(c("estimate", "MCSE"),
@@ -191,7 +213,7 @@ print(xtable(foo, digits = rep(4, 6),
 
 
 ###################################################
-### chunk number 21: tab1
+### chunk number 23: tab1
 ###################################################
 foo <- rbind(sigma, sigma.mcse)
 dimnames(foo) <- list(c("estimate", "MCSE"),
@@ -202,7 +224,7 @@ print(xtable(foo, digits = rep(4, 6),
 
 
 ###################################################
-### chunk number 22: time
+### chunk number 24: time
 ###################################################
 cat(out$time[1], "\n")
 

@@ -4,19 +4,22 @@
 \usepackage{apalike}
 \usepackage{graphics}
 \usepackage{amsmath}
+\usepackage{indentfirst}
+\usepackage[utf8]{inputenc}
 
 \DeclareMathOperator{\var}{var}
 
-\title{MCMC Package Example}
-\author{Charles J. Geyer}
-
 % \VignetteIndexEntry{MCMC Example}
 
-\usepackage{/HOME/faculty/charlie/local/lib/R/share/texmf/Sweave}
+\usepackage{/APPS/32/lib/R/share/texmf/Sweave}
 \begin{document}
 
+
+\title{MCMC Package Example (Version 0.5-1)}
+\author{Charles J. Geyer}
 \maketitle
 
+\section{The Problem}
 
 This is an example of using the \verb@mcmc@ package in R.  The problem comes
 from a take-home question on a (take-home) PhD qualifying exam
@@ -29,8 +32,7 @@ and four predictors, \verb@x1@, \verb@x2@, \verb@x3@, and \verb@x4@.
 A frequentist analysis for the problem is done by the following R statements
 \begin{Schunk}
 \begin{Sinput}
-> foo <- read.table(url("http://www.stat.umn.edu/geyer/PhD/F03/logit.txt"), 
-+     header = TRUE)
+> foo <- read.table("logit.txt", header = TRUE)
 > out <- glm(y ~ x1 + x2 + x3 + x4, data = foo, 
 +     family = binomial())
 > summary(out)
@@ -90,6 +92,8 @@ the following R function (given the preceding data definitions)
 \end{Sinput}
 \end{Schunk}
 
+\section{Beginning MCMC}
+
 With those definitions in place, the following code runs the Metropolis
 algorithm to simulate the posterior.
 \begin{Schunk}
@@ -114,6 +118,24 @@ algorithm to simulate the posterior.
 [1] 0.008
 \end{Soutput}
 \end{Schunk}
+
+The arguments to the \verb@metrop@ function here (there are more we don't
+use here) are
+\begin{itemize}
+\item an R function (here \verb@lupost@ that evaluates the log unnormalized
+    density of the desired stationary distribution (here a posterior
+    distribution) of the Markov chain.  Note that (although this example
+    does not exhibit the phenomenon) that the unnormalized density may
+    be zero, in which case the log unnormalized density is \verb@-Inf@.
+\item an initial state (here \verb@beta.init@) of the Markov chain.
+\item a number of batches (here \verb@1e3@) for the Markov chain.
+    This combines with batch length and spacing (both 1 by default)
+    to determine the number of iterations done.
+\item additional arguments (here \verb@x@ and \verb@y@) supplied to
+    provided functions (here \verb@lupost@).
+\item there is no ``burn-in'' argument, although burn-in is easily
+    accomplished, if desired (more on this below).
+\end{itemize}
 
 The output is in the component \verb@out$batch@ returned by the \verb@metrop@
 function.  We'll look at it presently, but first we need to adjust the
@@ -169,6 +191,27 @@ Be that as it may, we try for 20\%.
 \end{Soutput}
 \end{Schunk}
 
+Here the first argument to each instance of the \verb@metrop@ function is
+the output of a previous invocation.  The Markov chain continues where
+the previous run stopped doing just what it would have done if it had
+kept going the initial state and random seed being the final state and
+random seed of the previous invocation.  Everything stays the same
+except for the arguments (here \verb@scale@ that are supplied).
+\begin{itemize}
+\item The argument \verb@scale@ controls the size of the Metropolis
+    ``normal random walk'' proposal.  The default is \verb@scale = 1@.
+    Big steps give lower acceptance rates.  Small steps give higher.
+    We want something about 20\%.  It is also possible to make \verb@scale@
+    a vector or a matrix.  See \verb@help(metrop)@.
+\end{itemize}
+
+Because each run starts where the last one stopped (when the first argument
+to \verb@metrop@ is the output of the previous invocation), each run serves
+as ``burn-in'' for its successor (assuming that any part of that run was
+worth anything at all).
+
+\section{Diagnostics}
+
 O.~K.  That does it for the acceptance rate.  So let's do a longer run
 and look at the results.
 \begin{Schunk}
@@ -183,7 +226,7 @@ and look at the results.
 > out$time
 \end{Sinput}
 \begin{Soutput}
-[1] 1.22 0.49 1.70 0.00 0.00
+[1] 1.15 0.00 1.17 0.00 0.00
 \end{Soutput}
 \end{Schunk}
 
@@ -218,10 +261,36 @@ shows the time series plot made by the R statement
 \label{fig:fig2}
 \end{figure}
 
-As with any multiplot plot, this is a bit hard to read, but all
-we are trying to see is that the autocorrelations are negligible
-after about lag 25.  Thus batches of length 25 should be sufficient.
-But let's use 100 to be safe.
+As with any multiplot plot, these are a bit hard to read.  Readers are
+invited to make the separate plots to get a better picture.
+As with all ``diagnostic'' plots in MCMC, these don't ``diagnose''
+subtle problems.  As
+\begin{verbatim}
+http://www.stat.umn.edu/~charlie/mcmc/diag.html
+\end{verbatim}
+says
+\begin{quotation}
+The purpose of regression diagnostics is to find obvious, gross,
+embarrassing problems that jump out of simple plots.
+\end{quotation}
+The time series plots will show \emph{obvious} nonstationarity.
+They will not show \emph{nonobvious} nonstationarity.  They
+provide no guarantee whatsoever that your Markov chain is sampling
+anything remotely resembling the correct stationary distribution
+(with log unnormalized density \verb@lupost@).  In this very easy
+problem, we do not expect any convergence difficulties and so believe
+what the diagnostics seem to show, but one is a fool to trust such
+diagnostics in difficult problems.
+
+The autocorrelation plots seem to show that the
+the autocorrelations are negligible after about lag 25.
+This diagnostic inference is reliable if the sampler is actually
+working (has nearly reached equilibrium) and worthless otherwise.
+Thus batches of length 25 should be sufficient, but let's use
+length 100 to be safe.
+
+\section{Monte Carlo Estimates and Standard Errors}
+
 \begin{Schunk}
 \begin{Sinput}
 > out <- metrop(out, nbatch = 100, blen = 100, outfun = function(z, 
@@ -235,7 +304,7 @@ But let's use 100 to be safe.
 > out$time
 \end{Sinput}
 \begin{Soutput}
-[1] 1.25 0.48 1.73 0.00 0.00
+[1] 1.16 0.00 1.17 0.00 0.00
 \end{Soutput}
 \end{Schunk}
 
@@ -251,6 +320,12 @@ to write variance as a function of two things that can be estimated
 by simple averages.  Hence we want to average the state itself and
 the squares of each component.  Hence our \verb@outfun@ returns
 \verb@c(z, z^2)@ for an argument (the state vector) \verb@z@.
+
+The \verb@...@ argument to \verb@outfun@ is required, since the
+function is also passed the other arguments (here \verb@x@ and \verb@y@)
+to \verb@metrop@.
+
+\subsection{Simple Means}
 
 The grand means (means of batch means) are
 \begin{Schunk}
@@ -300,34 +375,79 @@ have variance $\sigma^2 / b$ where $b$ is the batch length, which is
 whereas the overall means \verb@mu@ have variance $\sigma^2 / n$ where
 $n$ is the total number of iterations, which is \verb@out$blen * out$nbatch@.
 
-MCSE for the posterior variances is also simple but a bit tricky.
-First note that the two calculations
+\subsection{Functions of Means}
+
+To get the MCSE for the posterior variances we apply the delta method.
+Let $u_i$ denote the sequence of batch means of the first kind for one
+parameter and $\bar{u}$ the grand mean (the estimate of the posterior mean
+of that parameter),
+let $v_i$ denote the sequence of batch means of the second kind for the
+same parameter and $\bar{v}$ the grand mean (the estimate of the posterior
+second absolute moment of that parameter), and let $\mu = E(\bar{u})$ and
+$\nu = E(\bar{v})$.  Then the delta method linearizes the nonlinear function
+$$
+   g(\mu, \nu) = \nu - \mu^2
+$$
+as
+$$
+   \Delta g(\mu, \nu) = \Delta \nu - 2 \mu \Delta \mu
+$$
+saying that
+$$
+   g(\bar{u}, \bar{v}) - g(\mu, \nu)
+$$
+has the same asymptotic normal distribution as
+$$
+   (\bar{v} - \nu) - 2 \mu (\bar{u} - \mu)
+$$
+which, of course, has variance \verb@1 / nbatch@ times that of
+$$
+   (v_i - \nu) - 2 \mu (u_i - \mu)
+$$
+and this variance is estimated by
+$$
+   \frac{1}{n_{\text{batch}}} \sum_{i = 1}^{n_{\text{batch}}}
+   \bigl[ (v_i - \bar{v}) - 2 \bar{u} (u_i - \bar{u}) \bigr]^2
+$$
+So
 \begin{Schunk}
 \begin{Sinput}
-> apply(out$batch[, 6:10], 2, mean) - mu^2
-\end{Sinput}
-\begin{Soutput}
-[1] 0.08791134 0.12875924 0.12822924 0.13359081 0.16367507
-\end{Soutput}
-\begin{Sinput}
-> apply(sweep(out$batch[, 6:10], 2, mu^2), 2, mean)
-\end{Sinput}
-\begin{Soutput}
-[1] 0.08791134 0.12875924 0.12822924 0.13359081 0.16367507
-\end{Soutput}
-\end{Schunk}
-do the same thing.  The latter makes it clear that
-\begin{Schunk}
-\begin{Sinput}
-> sigmasq.mcse <- apply(sweep(out$batch[, 6:10], 
-+     2, mu^2), 2, sd)/sqrt(out$nbatch)
+> u <- out$batch[, 1:5]
+> v <- out$batch[, 6:10]
+> ubar <- apply(u, 2, mean)
+> vbar <- apply(v, 2, mean)
+> deltau <- sweep(u, 2, ubar)
+> deltav <- sweep(v, 2, vbar)
+> foo <- sweep(deltau, 2, ubar, "*")
+> sigmasq.mcse <- sqrt(apply((deltav - 2 * foo)^2, 
++     2, mean)/out$nbatch)
 > sigmasq.mcse
 \end{Sinput}
 \begin{Soutput}
-[1] 0.01726152 0.02482315 0.04655002 0.01798337 0.02562800
+[1] 0.004241637 0.007292224 0.007271390 0.007374833
+[5] 0.008175832
 \end{Soutput}
 \end{Schunk}
 does the MCSE for the posterior variance.
+
+Let's just check that this complicated \verb@sweep@ and \verb@apply@ stuff
+does do the right thing.
+\begin{Schunk}
+\begin{Sinput}
+> sqrt(mean(((v[, 2] - vbar[2]) - 2 * ubar[2] * 
++     (u[, 2] - ubar[2]))^2)/out$nbatch)
+\end{Sinput}
+\begin{Soutput}
+[1] 0.007292224
+\end{Soutput}
+\end{Schunk}
+
+\paragraph{Comment} Through version 0.5 of this vignette it contained
+an incorrect procedure for calculating this MCSE, justified by a handwave.
+Essentially, it said to use the standard deviation of the batch means called
+\verb@v@ here, which appears to be very conservative.
+
+\subsection{Functions of Functions of Means}
 
 If we are also interested in the posterior standard deviation
 (a natural question, although not asked on the exam problem),
@@ -346,9 +466,12 @@ for the variance
 > sigma.mcse
 \end{Sinput}
 \begin{Soutput}
-[1] 0.02910896 0.03458897 0.06499746 0.02460100 0.03167331
+[1] 0.007152882 0.010161102 0.010152989 0.010088669
+[5] 0.010104403
 \end{Soutput}
 \end{Schunk}
+
+\section{A Final Run}
 
 So that's it.  The only thing left to do is a little more precision
 (the exam problem directed ``use a long enough run of your Markov chain
@@ -366,7 +489,7 @@ sampler so that the MCSE are less than 0.01'')
 > out$time
 \end{Sinput}
 \begin{Soutput}
-[1] 24.93  9.63 34.57  0.00  0.00
+[1] 23.40  0.02 24.40  0.00  0.00
 \end{Soutput}
 \begin{Sinput}
 > foo <- apply(out$batch, 2, mean)
@@ -392,13 +515,20 @@ sampler so that the MCSE are less than 0.01'')
 [5] 0.004273624
 \end{Soutput}
 \begin{Sinput}
-> sigmasq.mcse <- apply(sweep(out$batch[, 6:10], 
-+     2, mu^2), 2, sd)/sqrt(out$nbatch)
+> u <- out$batch[, 1:5]
+> v <- out$batch[, 6:10]
+> ubar <- apply(u, 2, mean)
+> vbar <- apply(v, 2, mean)
+> deltau <- sweep(u, 2, ubar)
+> deltav <- sweep(v, 2, vbar)
+> foo <- sweep(deltau, 2, ubar, "*")
+> sigmasq.mcse <- sqrt(apply((deltav - 2 * foo)^2, 
++     2, mean)/out$nbatch)
 > sigmasq.mcse
 \end{Sinput}
 \begin{Soutput}
-[1] 0.004250030 0.006448611 0.009418470 0.004182393
-[5] 0.006657834
+[1] 0.001044801 0.001725900 0.001518322 0.001553468
+[5] 0.002010717
 \end{Soutput}
 \begin{Sinput}
 > sigma <- sqrt(sigmasq)
@@ -412,8 +542,8 @@ sampler so that the MCSE are less than 0.01'')
 > sigma.mcse
 \end{Sinput}
 \begin{Soutput}
-[1] 0.007010065 0.008833530 0.012946642 0.005828862
-[5] 0.008327853
+[1] 0.001723311 0.002364198 0.002087087 0.002165017
+[5] 0.002515076
 \end{Soutput}
 \end{Schunk}
 and some nicer output, which is presented in three tables
@@ -425,8 +555,8 @@ First the posterior means,
 \caption{Posterior Means}
 \label{tab:mu}
 \begin{center}
-% latex table generated in R 2.1.0 by xtable 1.2-5 package
-% Mon Apr  4 20:19:24 2005
+% latex table generated in R 2.1.1 by xtable 1.2-5 package
+% Fri Sep 16 16:56:37 2005
 \begin{tabular}{lccccc}
 \hline
  & constant & $x_1$ & $x_2$ & $x_3$ & $x_4$ \\
@@ -441,14 +571,14 @@ then the posterior variances (table on page~\pageref{tab:sigmasq}),
 \caption{Posterior Variances}
 \label{tab:sigmasq}
 \begin{center}
-% latex table generated in R 2.1.0 by xtable 1.2-5 package
-% Mon Apr  4 20:19:24 2005
+% latex table generated in R 2.1.1 by xtable 1.2-5 package
+% Fri Sep 16 16:56:37 2005
 \begin{tabular}{lccccc}
 \hline
  & constant & $x_1$ & $x_2$ & $x_3$ & $x_4$ \\
 \hline
 estimate & 0.0919 & 0.1332 & 0.1323 & 0.1287 & 0.1598 \\
-MCSE & 0.0043 & 0.0064 & 0.0094 & 0.0042 & 0.0067 \\
+MCSE & 0.0010 & 0.0017 & 0.0015 & 0.0016 & 0.0020 \\
 \hline
 \end{tabular}\end{center}
 \end{table}
@@ -458,21 +588,21 @@ and finally the posterior standard deviations
 \caption{Posterior Standard Deviations}
 \label{tab:sigma}
 \begin{center}
-% latex table generated in R 2.1.0 by xtable 1.2-5 package
-% Mon Apr  4 20:19:24 2005
+% latex table generated in R 2.1.1 by xtable 1.2-5 package
+% Fri Sep 16 16:56:37 2005
 \begin{tabular}{lccccc}
 \hline
  & constant & $x_1$ & $x_2$ & $x_3$ & $x_4$ \\
 \hline
 estimate & 0.3031 & 0.3650 & 0.3637 & 0.3588 & 0.3997 \\
-MCSE & 0.0070 & 0.0088 & 0.0129 & 0.0058 & 0.0083 \\
+MCSE & 0.0017 & 0.0024 & 0.0021 & 0.0022 & 0.0025 \\
 \hline
 \end{tabular}\end{center}
 \end{table}
 
 Note for the record that the all the results presented in the tables
 are from ``one long run'' where long here took only
-24.93 seconds (on whatever computer it was run on).
+23.4 seconds (on whatever computer it was run on).
 
 \bibliographystyle{apalike}
 
