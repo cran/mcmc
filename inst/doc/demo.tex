@@ -1,21 +1,22 @@
 
 \documentclass{article}
 
-\usepackage{apalike}
+\usepackage{natbib}
 \usepackage{graphics}
 \usepackage{amsmath}
 \usepackage{indentfirst}
 \usepackage[utf8]{inputenc}
 
 \DeclareMathOperator{\var}{var}
+\DeclareMathOperator{\cov}{cov}
 
 % \VignetteIndexEntry{MCMC Example}
 
-\usepackage{/APPS/32/lib/R/share/texmf/Sweave}
+\usepackage{/APPS/lib64/R/share/texmf/Sweave}
 \begin{document}
 
 
-\title{MCMC Package Example (Version 0.5-1)}
+\title{MCMC Package Example (Version 0.6)}
 \author{Charles J. Geyer}
 \maketitle
 
@@ -140,12 +141,12 @@ use here) are
 The output is in the component \verb@out$batch@ returned by the \verb@metrop@
 function.  We'll look at it presently, but first we need to adjust the
 proposal to get a higher acceptance rate (\verb@out$accept@).  It is generally
-accepted \cite{grg} that an acceptance rate of about 20\% is right, although
+accepted \citep*{grg} that an acceptance rate of about 20\% is right, although
 this recommendation is based on the asymptotic analysis of a toy problem
 (simulating a multivariate normal distribution) for which one would never
 use MCMC and is very unrepresentative of difficult MCMC applications.
 
-Geyer and Thompson (1995) came to a similar conclusion,
+\citet{geyer-temp} came to a similar conclusion,
 that a 20\% acceptance rate is about right, in a very different situation.
 But they also warned that a 20\% acceptance rate could be very wrong
 and produced
@@ -226,7 +227,8 @@ and look at the results.
 > out$time
 \end{Sinput}
 \begin{Soutput}
-[1] 1.15 0.00 1.17 0.00 0.00
+   user  system elapsed 
+  0.704   0.000   0.704 
 \end{Soutput}
 \end{Schunk}
 
@@ -304,7 +306,8 @@ length 100 to be safe.
 > out$time
 \end{Sinput}
 \begin{Soutput}
-[1] 1.16 0.00 1.17 0.00 0.00
+   user  system elapsed 
+  0.756   0.000   0.753 
 \end{Soutput}
 \end{Schunk}
 
@@ -489,7 +492,8 @@ sampler so that the MCSE are less than 0.01'')
 > out$time
 \end{Sinput}
 \begin{Soutput}
-[1] 23.40  0.02 24.40  0.00  0.00
+   user  system elapsed 
+ 15.133   0.064  15.209 
 \end{Soutput}
 \begin{Sinput}
 > foo <- apply(out$batch, 2, mean)
@@ -555,15 +559,15 @@ First the posterior means,
 \caption{Posterior Means}
 \label{tab:mu}
 \begin{center}
-% latex table generated in R 2.1.1 by xtable 1.2-5 package
-% Fri Sep 16 16:56:37 2005
+% latex table generated in R 2.8.1 by xtable 1.5-4 package
+% Wed Apr  8 21:13:47 2009
 \begin{tabular}{lccccc}
-\hline
+  \hline
  & constant & $x_1$ & $x_2$ & $x_3$ & $x_4$ \\
-\hline
+  \hline
 estimate & 0.6625 & 0.7941 & 1.1713 & 0.5066 & 0.7261 \\
-MCSE & 0.0030 & 0.0036 & 0.0038 & 0.0036 & 0.0043 \\
-\hline
+  MCSE & 0.0030 & 0.0036 & 0.0038 & 0.0036 & 0.0043 \\
+   \hline
 \end{tabular}\end{center}
 \end{table}
 then the posterior variances (table on page~\pageref{tab:sigmasq}),
@@ -571,15 +575,15 @@ then the posterior variances (table on page~\pageref{tab:sigmasq}),
 \caption{Posterior Variances}
 \label{tab:sigmasq}
 \begin{center}
-% latex table generated in R 2.1.1 by xtable 1.2-5 package
-% Fri Sep 16 16:56:37 2005
+% latex table generated in R 2.8.1 by xtable 1.5-4 package
+% Wed Apr  8 21:13:47 2009
 \begin{tabular}{lccccc}
-\hline
+  \hline
  & constant & $x_1$ & $x_2$ & $x_3$ & $x_4$ \\
-\hline
+  \hline
 estimate & 0.0919 & 0.1332 & 0.1323 & 0.1287 & 0.1598 \\
-MCSE & 0.0010 & 0.0017 & 0.0015 & 0.0016 & 0.0020 \\
-\hline
+  MCSE & 0.0010 & 0.0017 & 0.0015 & 0.0016 & 0.0020 \\
+   \hline
 \end{tabular}\end{center}
 \end{table}
 and finally the posterior standard deviations
@@ -588,33 +592,205 @@ and finally the posterior standard deviations
 \caption{Posterior Standard Deviations}
 \label{tab:sigma}
 \begin{center}
-% latex table generated in R 2.1.1 by xtable 1.2-5 package
-% Fri Sep 16 16:56:37 2005
+% latex table generated in R 2.8.1 by xtable 1.5-4 package
+% Wed Apr  8 21:13:47 2009
 \begin{tabular}{lccccc}
-\hline
+  \hline
  & constant & $x_1$ & $x_2$ & $x_3$ & $x_4$ \\
-\hline
+  \hline
 estimate & 0.3031 & 0.3650 & 0.3637 & 0.3588 & 0.3997 \\
-MCSE & 0.0017 & 0.0024 & 0.0021 & 0.0022 & 0.0025 \\
-\hline
+  MCSE & 0.0017 & 0.0024 & 0.0021 & 0.0022 & 0.0025 \\
+   \hline
 \end{tabular}\end{center}
 \end{table}
 
 Note for the record that the all the results presented in the tables
 are from ``one long run'' where long here took only
-23.4 seconds (on whatever computer it was run on).
+15.133 seconds (on whatever computer it was run on).
 
-\bibliographystyle{apalike}
+\section{New Variance Estimation Functions}
+
+A new function \texttt{initseq} estimates variances in the Markov chain
+central limit theorem (CLT) following the methodology introduced by
+\citet[Section~3.3]{practical}.  These methods only apply to scalar-valued
+functionals of
+reversible Markov chains, but the Markov chains produced by the \texttt{metrop}
+function satisfy this condition, even, as we shall see below, when batching
+is used.
+
+Rather than redo the Markov chains in the preceding material, we just look
+at a toy problem, an AR(1) time series, which can be simulated in one line
+of R.  This is the example on the help page for \texttt{initseq}.
+\begin{Schunk}
+\begin{Sinput}
+> n <- 20000
+> rho <- 0.99
+> x <- arima.sim(model = list(ar = rho), n = n)
+\end{Sinput}
+\end{Schunk}
+The time series \texttt{x} is a reversible Markov chain and trivially
+a scalar-valued functional of a Markov chain.
+
+Define
+\begin{equation} \label{eq:little}
+   \gamma_k = \cov(X_i, X_{i + k})
+\end{equation}
+where the covariances refer to the stationary Markov chain having the
+same transition probabilities as \texttt{x}.  Then the variance in the CLT
+is
+$$
+   \sigma^2 = \gamma_0 + 2 \sum_{k = 1}^\infty \gamma_k
+$$
+\citep[Theorem~2.1]{practical}, that is,
+$$
+   \bar{x}_n \approx \text{Normal}\left(\mu, \frac{\sigma^2}{n}\right),
+$$
+where $\mu = E(X_i)$ is the quantity being estimated by MCMC (in this
+toy problem we know $\mu = 0$).
+
+Naive estimates of $\sigma^2$ obtained by plugging in empirical
+estimates of the gammas do not provide consistent estimation
+\citep[Section~3.1]{practical}.  Thus the scheme implemented
+by the R function \texttt{initseq}.  Define
+\begin{equation} \label{eq:big}
+   \Gamma_k = \gamma_{2 k} + \gamma_{2 k + 1}
+\end{equation}
+\citet[Theorem~3.1]{practical} says that $\Gamma_k$ considered as a function
+of $k$ is strictly positive, strictly decreasing, and strictly convex
+(provided we are, as stated above, working with a reversible Markov chain).
+Thus it makes sense to use estimators that use these properties.
+The estimators implemented by the R function \texttt{initseq} and
+described by \citet[Section~3.3]{practical} are conservative-consistent
+in the sense of Theorem~3.2 of that section.
+
+Figure~\ref{fig:gamma} (page~\pageref{fig:gamma})
+shows the time series plot made by the R statement
+\begin{Schunk}
+\begin{Sinput}
+> out <- initseq(x)
+> plot(seq(along = out$Gamma.pos) - 1, out$Gamma.pos, 
++     xlab = "k", ylab = expression(Gamma[k]), type = "l")
+> lines(seq(along = out$Gamma.dec) - 1, out$Gamma.dec, 
++     lty = "dotted")
+> lines(seq(along = out$Gamma.con) - 1, out$Gamma.con, 
++     lty = "dashed")
+\end{Sinput}
+\end{Schunk}
+\begin{figure}
+\begin{center}
+\includegraphics{demo-figgam}
+\end{center}
+\caption{Plot ``Big Gamma'' defined by \eqref{eq:little} and \eqref{eq:big}.
+Solid line, initial positive sequence estimator.
+Dotted line, initial monotone sequence estimator.
+Dashed line, initial convex sequence estimator.}
+\label{fig:gamma}
+\end{figure}
+One can use whichever curve one chooses, but there is no reason, now that
+the \texttt{initseq} function makes the computation trivial, to use the
+initial convex sequence.
+
+Of course, one is not interested in Figure~\ref{fig:gamma}, except
+perhaps when explaining the methodology.  What is actually important
+is the estimate of $\sigma^2$, which is given by
+\begin{Schunk}
+\begin{Sinput}
+> out$var.con
+\end{Sinput}
+\begin{Soutput}
+[1] 14386.32
+\end{Soutput}
+\begin{Sinput}
+> (1 + rho)/(1 - rho) * 1/(1 - rho^2)
+\end{Sinput}
+\begin{Soutput}
+[1] 10000
+\end{Soutput}
+\end{Schunk}
+where for comparison we have given the exact theoretical value of $\sigma^2$,
+which, of course, is never available in a non-toy problem.
+
+These initial sequence estimators seem, at first sight to be a competitor
+for the method of batch means.  However, appearances can be deceiving.
+The two methods are complementary.  The sequence of batch means is itself
+a scalar-valued functional of a reversible Markov chain.  Hence the
+initial sequence estimators can be applied to it.
+\begin{Schunk}
+\begin{Sinput}
+> blen <- 5
+> x.batch <- apply(matrix(x, nrow = blen), 2, mean)
+> bout <- initseq(x.batch)
+\end{Sinput}
+\end{Schunk}
+Because the batch length is too short, the variance of the batch means
+does not estimate $\sigma^2$.  We must account for the autocorrelation
+of the batches, shown in Figure~\ref{fig:gambat}.
+\begin{Schunk}
+\begin{Sinput}
+> plot(seq(along = bout$Gamma.con) - 1, bout$Gamma.con, 
++     xlab = "k", ylab = expression(Gamma[k]), type = "l")
+\end{Sinput}
+\end{Schunk}
+\begin{figure}
+\begin{center}
+\includegraphics{demo-figgambat}
+\end{center}
+\caption{Plot ``Big Gamma'' defined by \eqref{eq:little} and \eqref{eq:big}
+for the sequence of batch means (batch length 5).
+Only initial convex sequence estimator is shown.}
+\label{fig:gambat}
+\end{figure}
+Because the the variance is proportional to one over the batch length,
+we need to multiply by the batch length to estimate the $\sigma^2$
+for the original series.
+\begin{Schunk}
+\begin{Sinput}
+> out$var.con
+\end{Sinput}
+\begin{Soutput}
+[1] 14386.32
+\end{Soutput}
+\begin{Sinput}
+> bout$var.con * blen
+\end{Sinput}
+\begin{Soutput}
+[1] 14466.75
+\end{Soutput}
+\end{Schunk}
+Another way to look at this is that the MCMC estimator of $\mu$ is
+either \texttt{mean(x)} or \texttt{mean(x.batch)}.  And the variance
+must be divided by the sample size to give standard errors.  So either
+\begin{Schunk}
+\begin{Sinput}
+> mean(x) + c(-1, 1) * qnorm(0.975) * sqrt(out$var.con/length(x))
+\end{Sinput}
+\begin{Soutput}
+[1] -0.5078635  2.8167249
+\end{Soutput}
+\begin{Sinput}
+> mean(x.batch) + c(-1, 1) * qnorm(0.975) * sqrt(bout$var.con/length(x.batch))
+\end{Sinput}
+\begin{Soutput}
+[1] -0.5125039  2.8213653
+\end{Soutput}
+\end{Schunk}
+is an asymptotic 95\% confidence interval for $\mu$.  Just divide by
+the relevant sample size.
 
 \begin{thebibliography}{}
 
-\bibitem[Gelman, Roberts, and Gilks, 1996]{grg}
+\bibitem[Gelman et al.(1996)Gelman, Roberts, and Gilks]{grg}
 Gelman, A., G.~O. Roberts, and W.~R. Gilks (1996).
 \newblock Efficient Metropolis jumping rules.
 \newblock In \emph{Bayesian Statistics, 5 (Alicante, 1994)}, pp.~599--607.
   Oxford University Press.
 
-\bibitem[Geyer and Thompson, 1995]{geyer-temp}
+\bibitem[Geyer(1992)]{practical}
+Geyer, C.~J. (1992).
+\newblock Practical Markov chain Monte Carlo (with discussion).
+\newblock \emph{Statistical Science}, 7, 473--511.
+
+\bibitem[Geyer and Thompson(1995)]{geyer-temp}
 Geyer, C.~J. and E.~A. Thompson (1995).
 \newblock Annealing Markov chain Monte Carlo with applications to
     ancestral inference.
