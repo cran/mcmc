@@ -16,7 +16,7 @@
 \begin{document}
 
 
-\title{MCMC Package Example (Version 0.6)}
+\title{MCMC Package Example (Version 0.7-2)}
 \author{Charles J. Geyer}
 \maketitle
 
@@ -26,21 +26,22 @@ This is an example of using the \verb@mcmc@ package in R.  The problem comes
 from a take-home question on a (take-home) PhD qualifying exam
 (School of Statistics, University of Minnesota).
 
-Simulated data for the problem are in the file \verb@logit.txt@.
+Simulated data for the problem are in the dataset \verb@logit@.
 There are five variables in the data set, the response \verb@y@
 and four predictors, \verb@x1@, \verb@x2@, \verb@x3@, and \verb@x4@.
 
 A frequentist analysis for the problem is done by the following R statements
 \begin{Schunk}
 \begin{Sinput}
-> foo <- read.table("logit.txt", header = TRUE)
-> out <- glm(y ~ x1 + x2 + x3 + x4, data = foo, 
+> library(mcmc)
+> data(logit)
+> out <- glm(y ~ x1 + x2 + x3 + x4, data = logit, 
 +     family = binomial())
 > summary(out)
 \end{Sinput}
 \begin{Soutput}
 Call:
-glm(formula = y ~ x1 + x2 + x3 + x4, family = binomial(), data = foo)
+glm(formula = y ~ x1 + x2 + x3 + x4, family = binomial(), data = logit)
 
 Deviance Residuals: 
     Min       1Q   Median       3Q      Max  
@@ -77,12 +78,12 @@ for this model is calculated by
 the following R function (given the preceding data definitions)
 \begin{Schunk}
 \begin{Sinput}
-> x <- foo
+> x <- logit
 > x$y <- NULL
 > x <- as.matrix(x)
 > x <- cbind(1, x)
 > dimnames(x) <- NULL
-> y <- foo$y
+> y <- logit$y
 > lupost <- function(beta, x, y) {
 +     eta <- x %*% beta
 +     p <- 1/(1 + exp(-eta))
@@ -99,7 +100,6 @@ With those definitions in place, the following code runs the Metropolis
 algorithm to simulate the posterior.
 \begin{Schunk}
 \begin{Sinput}
-> library(mcmc)
 > set.seed(42)
 > beta.init <- as.numeric(coefficients(out))
 > out <- metrop(lupost, beta.init, 1000, x = x, 
@@ -111,6 +111,7 @@ algorithm to simulate the posterior.
  [4] "final"        "initial.seed" "final.seed"  
  [7] "time"         "lud"          "nbatch"      
 [10] "blen"         "nspac"        "scale"       
+[13] "debug"       
 \end{Soutput}
 \begin{Sinput}
 > out$accept
@@ -228,7 +229,7 @@ and look at the results.
 \end{Sinput}
 \begin{Soutput}
    user  system elapsed 
-  0.704   0.000   0.704 
+  0.396   0.000   0.396 
 \end{Soutput}
 \end{Schunk}
 
@@ -307,7 +308,7 @@ length 100 to be safe.
 \end{Sinput}
 \begin{Soutput}
    user  system elapsed 
-  0.756   0.000   0.753 
+  0.428   0.000   0.431 
 \end{Soutput}
 \end{Schunk}
 
@@ -493,7 +494,7 @@ sampler so that the MCSE are less than 0.01'')
 \end{Sinput}
 \begin{Soutput}
    user  system elapsed 
- 15.133   0.064  15.209 
+  8.776   0.000   8.778 
 \end{Soutput}
 \begin{Sinput}
 > foo <- apply(out$batch, 2, mean)
@@ -559,14 +560,14 @@ First the posterior means,
 \caption{Posterior Means}
 \label{tab:mu}
 \begin{center}
-% latex table generated in R 2.8.1 by xtable 1.5-4 package
-% Wed Apr  8 21:13:47 2009
+% latex table generated in R 2.9.2 by xtable 1.5-5 package
+% Mon Sep 21 15:20:22 2009
 \begin{tabular}{lccccc}
   \hline
- & constant & $x_1$ & $x_2$ & $x_3$ & $x_4$ \\
+ & constant & $x_1$ & $x_2$ & $x_3$ & $x_4$ \\ 
   \hline
-estimate & 0.6625 & 0.7941 & 1.1713 & 0.5066 & 0.7261 \\
-  MCSE & 0.0030 & 0.0036 & 0.0038 & 0.0036 & 0.0043 \\
+estimate & 0.6625 & 0.7941 & 1.1713 & 0.5066 & 0.7261 \\ 
+  MCSE & 0.0030 & 0.0036 & 0.0038 & 0.0036 & 0.0043 \\ 
    \hline
 \end{tabular}\end{center}
 \end{table}
@@ -575,14 +576,14 @@ then the posterior variances (table on page~\pageref{tab:sigmasq}),
 \caption{Posterior Variances}
 \label{tab:sigmasq}
 \begin{center}
-% latex table generated in R 2.8.1 by xtable 1.5-4 package
-% Wed Apr  8 21:13:47 2009
+% latex table generated in R 2.9.2 by xtable 1.5-5 package
+% Mon Sep 21 15:20:22 2009
 \begin{tabular}{lccccc}
   \hline
- & constant & $x_1$ & $x_2$ & $x_3$ & $x_4$ \\
+ & constant & $x_1$ & $x_2$ & $x_3$ & $x_4$ \\ 
   \hline
-estimate & 0.0919 & 0.1332 & 0.1323 & 0.1287 & 0.1598 \\
-  MCSE & 0.0010 & 0.0017 & 0.0015 & 0.0016 & 0.0020 \\
+estimate & 0.0919 & 0.1332 & 0.1323 & 0.1287 & 0.1598 \\ 
+  MCSE & 0.0010 & 0.0017 & 0.0015 & 0.0016 & 0.0020 \\ 
    \hline
 \end{tabular}\end{center}
 \end{table}
@@ -592,21 +593,21 @@ and finally the posterior standard deviations
 \caption{Posterior Standard Deviations}
 \label{tab:sigma}
 \begin{center}
-% latex table generated in R 2.8.1 by xtable 1.5-4 package
-% Wed Apr  8 21:13:47 2009
+% latex table generated in R 2.9.2 by xtable 1.5-5 package
+% Mon Sep 21 15:20:22 2009
 \begin{tabular}{lccccc}
   \hline
- & constant & $x_1$ & $x_2$ & $x_3$ & $x_4$ \\
+ & constant & $x_1$ & $x_2$ & $x_3$ & $x_4$ \\ 
   \hline
-estimate & 0.3031 & 0.3650 & 0.3637 & 0.3588 & 0.3997 \\
-  MCSE & 0.0017 & 0.0024 & 0.0021 & 0.0022 & 0.0025 \\
+estimate & 0.3031 & 0.3650 & 0.3637 & 0.3588 & 0.3997 \\ 
+  MCSE & 0.0017 & 0.0024 & 0.0021 & 0.0022 & 0.0025 \\ 
    \hline
 \end{tabular}\end{center}
 \end{table}
 
 Note for the record that the all the results presented in the tables
 are from ``one long run'' where long here took only
-15.133 seconds (on whatever computer it was run on).
+8.776 seconds (on whatever computer it was run on).
 
 \section{New Variance Estimation Functions}
 

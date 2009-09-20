@@ -1,0 +1,73 @@
+
+R version 2.9.2 (2009-08-24)
+Copyright (C) 2009 The R Foundation for Statistical Computing
+ISBN 3-900051-07-0
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> 
+>  library(mcmc)
+> 
+>  set.seed(42)
+> 
+>  d <- 9
+>  witch.which <- c(0.1, 0.3, 0.5, 0.7, 1.0)
+>  ncomp <- length(witch.which)
+> 
+>  neighbors <- matrix(FALSE, ncomp, ncomp)
+>  neighbors[row(neighbors) == col(neighbors) + 1] <- TRUE
+>  neighbors[row(neighbors) == col(neighbors) - 1] <- TRUE
+> 
+>  ludfun <- function(state, log.pseudo.prior) {
++      stopifnot(is.numeric(state))
++      stopifnot(length(state) == d + 1)
++      icomp <- state[1]
++      stopifnot(icomp == as.integer(icomp))
++      stopifnot(1 <= icomp && icomp <= ncomp)
++      stopifnot(is.numeric(log.pseudo.prior))
++      stopifnot(length(log.pseudo.prior) == ncomp)
++      theta <- state[-1]
++      if (any(theta > 1.0)) return(-Inf)
++      bnd <- witch.which[icomp]
++      lpp <- log.pseudo.prior[icomp]
++      if (any(theta > bnd)) return(lpp)
++      return(- d * log(bnd) + lpp)
++  }
+> 
+>  theta.initial <- c(1, rep(0.5, d))
+>  qux <- c(0, 9.179, 13.73, 16.71, 20.56)
+> 
+>  out <- temper(ludfun, initial = theta.initial, neighbors = neighbors,
++      nbatch = 50, blen = 30, nspac = 2, scale = 0.56789,
++      parallel = FALSE, debug = FALSE, log.pseudo.prior = qux)
+> 
+>  names(out)
+ [1] "lud"          "initial"      "neighbors"    "nbatch"       "blen"        
+ [6] "nspac"        "scale"        "outfun"       "debug"        "parallel"    
+[11] "initial.seed" "final.seed"   "time"         "batch"        "acceptx"     
+[16] "accepti"      "initial"      "final"        "ibatch"      
+> 
+>  out$acceptx
+[1] 0.9417040 0.9025424 0.8168498 0.7914110 0.6820175
+> 
+>  out$accepti
+          [,1]      [,2]      [,3]      [,4] [,5]
+[1,]        NA 0.4813084        NA        NA   NA
+[2,] 0.8512397        NA 0.9310345        NA   NA
+[3,]        NA 0.7883212        NA 0.9542484   NA
+[4,]        NA        NA 0.9012346        NA    1
+[5,]        NA        NA        NA 0.3750000   NA
+> 
+>  ### seems to be o. k.
+> 
+> 
