@@ -16,7 +16,7 @@
 \begin{document}
 
 
-\title{MCMC Package Example (Version 0.7-2)}
+\title{MCMC Package Example (Version 0.7-3)}
 \author{Charles J. Geyer}
 \maketitle
 
@@ -229,7 +229,7 @@ and look at the results.
 \end{Sinput}
 \begin{Soutput}
    user  system elapsed 
-  0.396   0.000   0.396 
+  0.400   0.000   0.403 
 \end{Soutput}
 \end{Schunk}
 
@@ -308,7 +308,7 @@ length 100 to be safe.
 \end{Sinput}
 \begin{Soutput}
    user  system elapsed 
-  0.428   0.000   0.431 
+  0.440   0.000   0.437 
 \end{Soutput}
 \end{Schunk}
 
@@ -494,7 +494,7 @@ sampler so that the MCSE are less than 0.01'')
 \end{Sinput}
 \begin{Soutput}
    user  system elapsed 
-  8.776   0.000   8.778 
+  8.824   0.000   8.826 
 \end{Soutput}
 \begin{Sinput}
 > foo <- apply(out$batch, 2, mean)
@@ -561,7 +561,7 @@ First the posterior means,
 \label{tab:mu}
 \begin{center}
 % latex table generated in R 2.9.2 by xtable 1.5-5 package
-% Mon Sep 21 15:20:22 2009
+% Thu Oct  8 15:06:27 2009
 \begin{tabular}{lccccc}
   \hline
  & constant & $x_1$ & $x_2$ & $x_3$ & $x_4$ \\ 
@@ -577,7 +577,7 @@ then the posterior variances (table on page~\pageref{tab:sigmasq}),
 \label{tab:sigmasq}
 \begin{center}
 % latex table generated in R 2.9.2 by xtable 1.5-5 package
-% Mon Sep 21 15:20:22 2009
+% Thu Oct  8 15:06:27 2009
 \begin{tabular}{lccccc}
   \hline
  & constant & $x_1$ & $x_2$ & $x_3$ & $x_4$ \\ 
@@ -594,7 +594,7 @@ and finally the posterior standard deviations
 \label{tab:sigma}
 \begin{center}
 % latex table generated in R 2.9.2 by xtable 1.5-5 package
-% Mon Sep 21 15:20:22 2009
+% Thu Oct  8 15:06:27 2009
 \begin{tabular}{lccccc}
   \hline
  & constant & $x_1$ & $x_2$ & $x_3$ & $x_4$ \\ 
@@ -607,7 +607,7 @@ estimate & 0.3031 & 0.3650 & 0.3637 & 0.3588 & 0.3997 \\
 
 Note for the record that the all the results presented in the tables
 are from ``one long run'' where long here took only
-8.776 seconds (on whatever computer it was run on).
+8.824 seconds (on whatever computer it was run on).
 
 \section{New Variance Estimation Functions}
 
