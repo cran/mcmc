@@ -12,11 +12,11 @@
 
 % \VignetteIndexEntry{MCMC Example}
 
-\usepackage{/APPS/lib64/R/share/texmf/Sweave}
+\usepackage{Sweave}
 \begin{document}
 
 
-\title{MCMC Package Example (Version 0.7-3)}
+\title{MCMC Package Example (Version 0.9)}
 \author{Charles J. Geyer}
 \maketitle
 
@@ -35,13 +35,14 @@ A frequentist analysis for the problem is done by the following R statements
 \begin{Sinput}
 > library(mcmc)
 > data(logit)
-> out <- glm(y ~ x1 + x2 + x3 + x4, data = logit, 
-+     family = binomial())
+> out <- glm(y ~ x1 + x2 + x3 + x4, data = logit,
++     family = binomial(), x = TRUE)
 > summary(out)
 \end{Sinput}
 \begin{Soutput}
 Call:
-glm(formula = y ~ x1 + x2 + x3 + x4, family = binomial(), data = logit)
+glm(formula = y ~ x1 + x2 + x3 + x4, family = binomial(), data = logit, 
+    x = TRUE)
 
 Deviance Residuals: 
     Min       1Q   Median       3Q      Max  
@@ -78,21 +79,46 @@ for this model is calculated by
 the following R function (given the preceding data definitions)
 \begin{Schunk}
 \begin{Sinput}
-> x <- logit
-> x$y <- NULL
-> x <- as.matrix(x)
-> x <- cbind(1, x)
-> dimnames(x) <- NULL
-> y <- logit$y
+> x <- out$x
+> y <- out$y
 > lupost <- function(beta, x, y) {
-+     eta <- x %*% beta
-+     p <- 1/(1 + exp(-eta))
-+     logl <- sum(log(p[y == 1])) + sum(log(1 - 
-+         p[y == 0]))
-+     return(logl + sum(dnorm(beta, 0, 2, log = TRUE)))
++     eta <- as.numeric(x %*% beta)
++     logp <- ifelse(eta < 0, eta - log1p(exp(eta)), - log1p(exp(- eta)))
++     logq <- ifelse(eta < 0, - log1p(exp(eta)), - eta - log1p(exp(- eta)))
++     logl <- sum(logp[y == 1]) + sum(logq[y == 0])
++     return(logl - sum(beta^2) / 8)
 + }
 \end{Sinput}
 \end{Schunk}
+The tricky calculation of the log likelihood avoids overflow and catastrophic
+cancellation in calculation of $\log(p)$ and $\log(q)$ where
+\begin{align*}
+   p & = \frac{\exp(\eta)}{1 + \exp(\eta)} = \frac{1}{1 + \exp(- \eta)}
+   \\
+   q & = \frac{1}{1 + \exp(\eta)} = \frac{\exp(- \eta)}{1 + \exp(- \eta)}
+\end{align*}
+so taking logs gives
+\begin{align*}
+   \log(p) & = \eta - \log(1 + \exp(\eta)) = - \log(1 + \exp(- \eta))
+   \\
+   \log(q) & = - \log(1 + \exp(\eta)) = - \eta - \log(1 + \exp(- \eta))
+\end{align*}
+To avoid overflow, we always chose the case where the argument of $\exp$
+is negative.  We have also avoided catastrophic cancellation when
+$\lvert\eta\rvert$ is large.  If $\eta$ is large and positive, then
+\begin{align*}
+   p & \approx 1
+   \\
+   q & \approx 0
+   \\
+   \log(p) & \approx - \exp(- \eta)
+   \\
+   \log(q) & \approx - \eta - \exp(- \eta)
+\end{align*}
+and our use of the R function \texttt{log1p}, which calculates the
+function $x \mapsto \log(1 + x)$
+correctly for small $x$ avoids all problems.  The case where $\eta$ is large
+and negative is similar.
 
 \section{Beginning MCMC}
 
@@ -100,10 +126,9 @@ With those definitions in place, the following code runs the Metropolis
 algorithm to simulate the posterior.
 \begin{Schunk}
 \begin{Sinput}
-> set.seed(42)
+> set.seed(42)    # to get reproducible results
 > beta.init <- as.numeric(coefficients(out))
-> out <- metrop(lupost, beta.init, 1000, x = x, 
-+     y = y)
+> out <- metrop(lupost, beta.init, 1e3, x = x, y = y)
 > names(out)
 \end{Sinput}
 \begin{Soutput}
@@ -121,12 +146,12 @@ algorithm to simulate the posterior.
 \end{Soutput}
 \end{Schunk}
 
-The arguments to the \verb@metrop@ function here (there are more we don't
-use here) are
+The arguments to the \verb@metrop@ function used here (there are others
+we don't use) are
 \begin{itemize}
-\item an R function (here \verb@lupost@ that evaluates the log unnormalized
-    density of the desired stationary distribution (here a posterior
-    distribution) of the Markov chain.  Note that (although this example
+\item an R function (here \verb@lupost@) that evaluates the log unnormalized
+    density of the desired stationary distribution of the Markov chain
+    (here a posterior distribution).  Note that (although this example
     does not exhibit the phenomenon) that the unnormalized density may
     be zero, in which case the log unnormalized density is \verb@-Inf@.
 \item an initial state (here \verb@beta.init@) of the Markov chain.
@@ -195,10 +220,10 @@ Be that as it may, we try for 20\%.
 
 Here the first argument to each instance of the \verb@metrop@ function is
 the output of a previous invocation.  The Markov chain continues where
-the previous run stopped doing just what it would have done if it had
-kept going the initial state and random seed being the final state and
+the previous run stopped, doing just what it would have done if it had
+kept going, the initial state and random seed being the final state and
 random seed of the previous invocation.  Everything stays the same
-except for the arguments (here \verb@scale@ that are supplied).
+except for the arguments supplied (here \verb@scale@).
 \begin{itemize}
 \item The argument \verb@scale@ controls the size of the Metropolis
     ``normal random walk'' proposal.  The default is \verb@scale = 1@.
@@ -218,7 +243,7 @@ O.~K.  That does it for the acceptance rate.  So let's do a longer run
 and look at the results.
 \begin{Schunk}
 \begin{Sinput}
-> out <- metrop(out, nbatch = 10000, x = x, y = y)
+> out <- metrop(out, nbatch = 1e4, x = x, y = y)
 > out$accept
 \end{Sinput}
 \begin{Soutput}
@@ -229,7 +254,7 @@ and look at the results.
 \end{Sinput}
 \begin{Soutput}
    user  system elapsed 
-  0.400   0.000   0.403 
+  1.509   0.000   1.514 
 \end{Soutput}
 \end{Schunk}
 
@@ -296,8 +321,8 @@ length 100 to be safe.
 
 \begin{Schunk}
 \begin{Sinput}
-> out <- metrop(out, nbatch = 100, blen = 100, outfun = function(z, 
-+     ...) c(z, z^2), x = x, y = y)
+> out <- metrop(out, nbatch = 1e2, blen = 100,
++     outfun = function(z, ...) c(z, z^2), x = x, y = y)
 > out$accept
 \end{Sinput}
 \begin{Soutput}
@@ -308,7 +333,7 @@ length 100 to be safe.
 \end{Sinput}
 \begin{Soutput}
    user  system elapsed 
-  0.440   0.000   0.437 
+  1.557   0.001   1.563 
 \end{Soutput}
 \end{Schunk}
 
@@ -343,7 +368,7 @@ The grand means (means of batch means) are
 \end{Schunk}
 The first 5 numbers are the Monte Carlo estimates of the posterior means.
 The second 5 numbers are the Monte Carlo estimates of the posterior
-absolute second moments.  We get the posterior variances by
+ordinary second moments.  We get the posterior variances by
 \begin{Schunk}
 \begin{Sinput}
 > foo <- apply(out$batch, 2, mean)
@@ -366,7 +391,7 @@ Monte Carlo standard errors (MCSE) are calculated from the batch means.
 This is simplest for the means.
 \begin{Schunk}
 \begin{Sinput}
-> mu.mcse <- apply(out$batch[, 1:5], 2, sd)/sqrt(out$nbatch)
+> mu.mcse <- apply(out$batch[ , 1:5], 2, sd) / sqrt(out$nbatch)
 > mu.mcse
 \end{Sinput}
 \begin{Soutput}
@@ -416,15 +441,14 @@ $$
 So
 \begin{Schunk}
 \begin{Sinput}
-> u <- out$batch[, 1:5]
-> v <- out$batch[, 6:10]
+> u <- out$batch[ , 1:5]
+> v <- out$batch[ , 6:10]
 > ubar <- apply(u, 2, mean)
 > vbar <- apply(v, 2, mean)
 > deltau <- sweep(u, 2, ubar)
 > deltav <- sweep(v, 2, vbar)
 > foo <- sweep(deltau, 2, ubar, "*")
-> sigmasq.mcse <- sqrt(apply((deltav - 2 * foo)^2, 
-+     2, mean)/out$nbatch)
+> sigmasq.mcse <- sqrt(apply((deltav - 2 * foo)^2, 2, mean) / out$nbatch)
 > sigmasq.mcse
 \end{Sinput}
 \begin{Soutput}
@@ -438,8 +462,8 @@ Let's just check that this complicated \verb@sweep@ and \verb@apply@ stuff
 does do the right thing.
 \begin{Schunk}
 \begin{Sinput}
-> sqrt(mean(((v[, 2] - vbar[2]) - 2 * ubar[2] * 
-+     (u[, 2] - ubar[2]))^2)/out$nbatch)
+> sqrt(mean(((v[ , 2] - vbar[2]) - 2 * ubar[2] * (u[ , 2] - ubar[2]))^2) /
++     out$nbatch)
 \end{Sinput}
 \begin{Soutput}
 [1] 0.007292224
@@ -447,7 +471,8 @@ does do the right thing.
 \end{Schunk}
 
 \paragraph{Comment} Through version 0.5 of this vignette it contained
-an incorrect procedure for calculating this MCSE, justified by a handwave.
+an incorrect procedure for calculating this MCSE, justified by a handwave
+(which was incorrect).
 Essentially, it said to use the standard deviation of the batch means called
 \verb@v@ here, which appears to be very conservative.
 
@@ -460,7 +485,7 @@ for the variance
 \begin{Schunk}
 \begin{Sinput}
 > sigma <- sqrt(sigmasq)
-> sigma.mcse <- sigmasq.mcse/(2 * sigma)
+> sigma.mcse <- sigmasq.mcse / (2 * sigma)
 > sigma
 \end{Sinput}
 \begin{Soutput}
@@ -482,8 +507,7 @@ So that's it.  The only thing left to do is a little more precision
 sampler so that the MCSE are less than 0.01'')
 \begin{Schunk}
 \begin{Sinput}
-> out <- metrop(out, nbatch = 500, blen = 400, x = x, 
-+     y = y)
+> out <- metrop(out, nbatch = 5e2, blen = 400, x = x, y = y)
 > out$accept
 \end{Sinput}
 \begin{Soutput}
@@ -494,7 +518,7 @@ sampler so that the MCSE are less than 0.01'')
 \end{Sinput}
 \begin{Soutput}
    user  system elapsed 
-  8.824   0.000   8.826 
+ 31.279   0.000  31.384 
 \end{Soutput}
 \begin{Sinput}
 > foo <- apply(out$batch, 2, mean)
@@ -512,7 +536,7 @@ sampler so that the MCSE are less than 0.01'')
 [1] 0.09189246 0.13323054 0.13230811 0.12871293 0.15978638
 \end{Soutput}
 \begin{Sinput}
-> mu.mcse <- apply(out$batch[, 1:5], 2, sd)/sqrt(out$nbatch)
+> mu.mcse <- apply(out$batch[ , 1:5], 2, sd) / sqrt(out$nbatch)
 > mu.mcse
 \end{Sinput}
 \begin{Soutput}
@@ -520,15 +544,14 @@ sampler so that the MCSE are less than 0.01'')
 [5] 0.004273624
 \end{Soutput}
 \begin{Sinput}
-> u <- out$batch[, 1:5]
-> v <- out$batch[, 6:10]
+> u <- out$batch[ , 1:5]
+> v <- out$batch[ , 6:10]
 > ubar <- apply(u, 2, mean)
 > vbar <- apply(v, 2, mean)
 > deltau <- sweep(u, 2, ubar)
 > deltav <- sweep(v, 2, vbar)
 > foo <- sweep(deltau, 2, ubar, "*")
-> sigmasq.mcse <- sqrt(apply((deltav - 2 * foo)^2, 
-+     2, mean)/out$nbatch)
+> sigmasq.mcse <- sqrt(apply((deltav - 2 * foo)^2, 2, mean) / out$nbatch)
 > sigmasq.mcse
 \end{Sinput}
 \begin{Soutput}
@@ -537,7 +560,7 @@ sampler so that the MCSE are less than 0.01'')
 \end{Soutput}
 \begin{Sinput}
 > sigma <- sqrt(sigmasq)
-> sigma.mcse <- sigmasq.mcse/(2 * sigma)
+> sigma.mcse <- sigmasq.mcse / (2 * sigma)
 > sigma
 \end{Sinput}
 \begin{Soutput}
@@ -560,8 +583,8 @@ First the posterior means,
 \caption{Posterior Means}
 \label{tab:mu}
 \begin{center}
-% latex table generated in R 2.9.2 by xtable 1.5-5 package
-% Thu Oct  8 15:06:27 2009
+% latex table generated in R 2.15.1 by xtable 1.7-0 package
+% Mon Jul  2 11:36:10 2012
 \begin{tabular}{lccccc}
   \hline
  & constant & $x_1$ & $x_2$ & $x_3$ & $x_4$ \\ 
@@ -576,8 +599,8 @@ then the posterior variances (table on page~\pageref{tab:sigmasq}),
 \caption{Posterior Variances}
 \label{tab:sigmasq}
 \begin{center}
-% latex table generated in R 2.9.2 by xtable 1.5-5 package
-% Thu Oct  8 15:06:27 2009
+% latex table generated in R 2.15.1 by xtable 1.7-0 package
+% Mon Jul  2 11:36:10 2012
 \begin{tabular}{lccccc}
   \hline
  & constant & $x_1$ & $x_2$ & $x_3$ & $x_4$ \\ 
@@ -593,8 +616,8 @@ and finally the posterior standard deviations
 \caption{Posterior Standard Deviations}
 \label{tab:sigma}
 \begin{center}
-% latex table generated in R 2.9.2 by xtable 1.5-5 package
-% Thu Oct  8 15:06:27 2009
+% latex table generated in R 2.15.1 by xtable 1.7-0 package
+% Mon Jul  2 11:36:10 2012
 \begin{tabular}{lccccc}
   \hline
  & constant & $x_1$ & $x_2$ & $x_3$ & $x_4$ \\ 
@@ -607,7 +630,7 @@ estimate & 0.3031 & 0.3650 & 0.3637 & 0.3588 & 0.3997 \\
 
 Note for the record that the all the results presented in the tables
 are from ``one long run'' where long here took only
-8.824 seconds (on whatever computer it was run on).
+31.279 seconds (on whatever computer it was run on).
 
 \section{New Variance Estimation Functions}
 
@@ -624,7 +647,7 @@ at a toy problem, an AR(1) time series, which can be simulated in one line
 of R.  This is the example on the help page for \texttt{initseq}.
 \begin{Schunk}
 \begin{Sinput}
-> n <- 20000
+> n <- 2e4
 > rho <- 0.99
 > x <- arima.sim(model = list(ar = rho), n = n)
 \end{Sinput}
@@ -669,12 +692,10 @@ shows the time series plot made by the R statement
 \begin{Schunk}
 \begin{Sinput}
 > out <- initseq(x)
-> plot(seq(along = out$Gamma.pos) - 1, out$Gamma.pos, 
-+     xlab = "k", ylab = expression(Gamma[k]), type = "l")
-> lines(seq(along = out$Gamma.dec) - 1, out$Gamma.dec, 
-+     lty = "dotted")
-> lines(seq(along = out$Gamma.con) - 1, out$Gamma.con, 
-+     lty = "dashed")
+> plot(seq(along = out$Gamma.pos) - 1, out$Gamma.pos,
++         xlab = "k", ylab = expression(Gamma[k]), type = "l")
+> lines(seq(along = out$Gamma.dec) - 1, out$Gamma.dec, lty = "dotted")
+> lines(seq(along = out$Gamma.con) - 1, out$Gamma.con, lty = "dashed")
 \end{Sinput}
 \end{Schunk}
 \begin{figure}
@@ -687,9 +708,9 @@ Dotted line, initial monotone sequence estimator.
 Dashed line, initial convex sequence estimator.}
 \label{fig:gamma}
 \end{figure}
-One can use whichever curve one chooses, but there is no reason, now that
-the \texttt{initseq} function makes the computation trivial, to use the
-initial convex sequence.
+One can use whichever curve one chooses, but now that
+the \texttt{initseq} function makes the computation trivial, it makes
+sense to use the initial convex sequence.
 
 Of course, one is not interested in Figure~\ref{fig:gamma}, except
 perhaps when explaining the methodology.  What is actually important
@@ -702,7 +723,7 @@ is the estimate of $\sigma^2$, which is given by
 [1] 14386.32
 \end{Soutput}
 \begin{Sinput}
-> (1 + rho)/(1 - rho) * 1/(1 - rho^2)
+> (1 + rho) / (1 - rho) * 1 / (1 - rho^2)
 \end{Sinput}
 \begin{Soutput}
 [1] 10000
@@ -728,8 +749,8 @@ does not estimate $\sigma^2$.  We must account for the autocorrelation
 of the batches, shown in Figure~\ref{fig:gambat}.
 \begin{Schunk}
 \begin{Sinput}
-> plot(seq(along = bout$Gamma.con) - 1, bout$Gamma.con, 
-+     xlab = "k", ylab = expression(Gamma[k]), type = "l")
+> plot(seq(along = bout$Gamma.con) - 1, bout$Gamma.con,
++         xlab = "k", ylab = expression(Gamma[k]), type = "l")
 \end{Sinput}
 \end{Schunk}
 \begin{figure}
@@ -763,13 +784,13 @@ either \texttt{mean(x)} or \texttt{mean(x.batch)}.  And the variance
 must be divided by the sample size to give standard errors.  So either
 \begin{Schunk}
 \begin{Sinput}
-> mean(x) + c(-1, 1) * qnorm(0.975) * sqrt(out$var.con/length(x))
+> mean(x) + c(-1, 1) * qnorm(0.975) * sqrt(out$var.con / length(x))
 \end{Sinput}
 \begin{Soutput}
 [1] -0.5078635  2.8167249
 \end{Soutput}
 \begin{Sinput}
-> mean(x.batch) + c(-1, 1) * qnorm(0.975) * sqrt(bout$var.con/length(x.batch))
+> mean(x.batch) + c(-1, 1) * qnorm(0.975) * sqrt(bout$var.con / length(x.batch))
 \end{Sinput}
 \begin{Soutput}
 [1] -0.5125039  2.8213653

@@ -18,7 +18,7 @@
 
 % \VignetteIndexEntry{Bayes Factors via Serial Tempering}
 
-\usepackage{/APPS/lib64/R/share/texmf/Sweave}
+\usepackage{Sweave}
 \begin{document}
 
 \title{Bayes Factors via Serial Tempering}
@@ -141,8 +141,7 @@ It was originally invented with the primary aim of speeding up MCMC
 convergence, but was also recognized to be useful for sampling multiple
 distributions \citep{geyer-thompson}.  In the latter role it is sometimes
 referred to as ``umbrella sampling'' which is a term coined
-by \citet{torrie-valleau} for sampling multiple distributions not necessarily
-via MCMC or simulated tempering (which was invented long after they wrote).
+by \citet{torrie-valleau} for sampling multiple distributions via MCMC.
 
 We have a finite set of unnormalized distributions we want to sample,
 all related in some way.  The R function \texttt{temper}
@@ -358,8 +357,8 @@ Assuming the \verb@mcmc@ package has been installed, we load it
 \end{Sinput}
 \end{Schunk}
 The version of the package used to make this document
-is 0.7-3 (which is available on CRAN).
-The version of R used to make this document is 2.10.1.
+is 0.9 (which is available on CRAN).
+The version of R used to make this document is 2.15.1.
 
 We also set the random number generator seed so that the results are
 reproducible.
@@ -382,8 +381,8 @@ A frequentist analysis for the problem is done by the following R statements
 \begin{Schunk}
 \begin{Sinput}
 > data(logit)
-> out <- glm(y ~ x1 + x2 + x3 + x4, data = logit, family = binomial, 
-+     x = TRUE)
+> out <- glm(y ~ x1 + x2 + x3 + x4, data = logit,
++     family = binomial, x = TRUE)
 > summary(out)
 \end{Sinput}
 \begin{Soutput}
@@ -434,10 +433,10 @@ We set up a matrix that indicates these models.
 > varnam <- varnam[varnam != "(Intercept)"]
 > nvar <- length(varnam)
 > models <- NULL
-> foo <- seq(0, 2^nvar - 1)
+> foo <- seq(0, 2^nvar - 1) 
 > for (i in 1:nvar) {
-+     bar <- foo%/%2^(i - 1)
-+     bar <- bar%%2
++     bar <- foo %/% 2^(i - 1)
++     bar <- bar %% 2
 +     models <- cbind(bar, models, deparse.level = 0)
 + }
 > colnames(models) <- varnam
@@ -477,8 +476,7 @@ only by one predictor.
 +     for (j in 1:ncol(neighbors)) {
 +         foo <- models[i, ]
 +         bar <- models[j, ]
-+         if (sum(foo != bar) == 1) 
-+             neighbors[i, j] <- TRUE
++         if (sum(foo != bar) == 1) neighbors[i, j] <- TRUE
 +     }
 + }
 \end{Sinput}
@@ -528,12 +526,10 @@ function and instead are found in the R global environment.
 +     beta <- state[-1]
 +     inies <- c(TRUE, as.logical(models[icomp, ]))
 +     beta.logl <- beta
-+     beta.logl[!inies] <- 0
++     beta.logl[! inies] <- 0
 +     eta <- as.numeric(modmat %*% beta.logl)
-+     logp <- ifelse(eta < 0, eta - log1p(exp(eta)), 
-+         -log1p(exp(-eta)))
-+     logq <- ifelse(eta < 0, -log1p(exp(eta)), -eta - 
-+         log1p(exp(-eta)))
++     logp <- ifelse(eta < 0, eta - log1p(exp(eta)), - log1p(exp(- eta)))
++     logq <- ifelse(eta < 0, - log1p(exp(eta)), - eta - log1p(exp(- eta)))
 +     logl <- sum(logp[y == 1]) + sum(logq[y == 0])
 +     logl + sum(dnorm(beta, 0, 2, log = TRUE)) + log.pseudo.prior[icomp]
 + }
@@ -549,7 +545,7 @@ and we initialize \texttt{log.pseudo.prior} at all zeros, having no idea
 \begin{Sinput}
 > state.initial <- c(nrow(models), out$coefficients)
 > qux <- rep(0, nrow(models))
-> out <- temper(ludfun, initial = state.initial, neighbors = neighbors, 
+> out <- temper(ludfun, initial = state.initial, neighbors = neighbors,
 +     nbatch = 1000, blen = 100, log.pseudo.prior = qux)
 > names(out)
 \end{Sinput}
@@ -565,7 +561,7 @@ and we initialize \texttt{log.pseudo.prior} at all zeros, having no idea
 \end{Sinput}
 \begin{Soutput}
    user  system elapsed 
- 27.357   0.000  27.356 
+ 22.734   0.002  22.813 
 \end{Soutput}
 \end{Schunk}
 So what happened?
@@ -584,7 +580,7 @@ The ST chain did not mix well, several models not being visited even once.
 So we adjust the pseudo priors to get uniform distribution.
 \begin{Schunk}
 \begin{Sinput}
-> qux <- qux + pmin(log(max(ibar)/ibar), 10)
+> qux <- qux + pmin(log(max(ibar) / ibar), 10)
 > qux <- qux - min(qux)
 > qux
 \end{Sinput}
@@ -610,54 +606,55 @@ We do this only to make \texttt{qux} more comparable from
 run to run.
 
 Now we repeat this until the log pseudoprior ``converges'' roughly.
+Because this loop takes longer than CRAN vingettes are supposed to
+take, we save the results to a file
+and load the results from this file if it already exists.
 \begin{Schunk}
 \begin{Sinput}
-> qux.save <- qux
-> time.save <- out$time
-> repeat {
-+     out <- temper(out, log.pseudo.prior = qux)
-+     ibar <- colMeans(out$ibatch)
-+     qux <- qux + pmin(log(max(ibar)/ibar), 10)
-+     qux <- qux - min(qux)
-+     qux.save <- rbind(qux.save, qux, deparse.level = 0)
-+     time.save <- rbind(time.save, out$time, deparse.level = 0)
-+     if (max(ibar)/min(ibar) < 2) 
-+         break
+> lout <- suppressWarnings(try(load("bfst1.rda"), silent = TRUE))
+> if (inherits(lout, "try-error")) {
++     qux.save <- qux
++     time.save <- out$time
++     repeat{
++         out <- temper(out, log.pseudo.prior = qux)
++         ibar <- colMeans(out$ibatch)
++         qux <- qux + pmin(log(max(ibar) / ibar), 10)
++         qux <- qux - min(qux)
++         qux.save <- rbind(qux.save, qux, deparse.level = 0)
++         time.save <- rbind(time.save, out$time, deparse.level = 0)
++         if (max(ibar) / min(ibar) < 2) break
++     }
++     save(out, qux, qux.save, time.save, file = "bfst1.rda")
++ } else {
++     .Random.seed <- out$final.seed
 + }
-> qux.save
+> print(qux.save, digits = 3)
 \end{Sinput}
 \begin{Soutput}
-         [,1]      [,2]     [,3]      [,4]     [,5]     [,6]
-[1,] 10.00000 10.000000 10.00000 10.000000 4.095838 1.579466
-[2,] 17.70751  9.999775 14.43037  9.714906 4.049512 1.539382
-[3,] 18.76818  9.325494 14.43382  9.014132 3.972982 1.385058
-[4,] 18.94703  9.733071 14.71371  9.478451 4.276229 1.490810
-         [,7]     [,8]     [,9]    [,10]    [,11]    [,12]
-[1,] 3.731938 1.654321 6.860822 5.049062 8.277888 6.368346
-[2,] 3.349201 1.826804 6.024402 4.412902 6.607937 5.676098
-[3,] 3.164068 1.401334 5.635094 4.145408 6.330649 5.173185
-[4,] 3.229581 1.553204 6.186982 4.623995 6.881493 5.660156
-         [,13]       [,14]     [,15]     [,16]
-[1,] 0.1006185 0.000000000 0.9256077 0.8485902
-[2,] 0.1475452 0.000000000 0.7369393 0.7865126
-[3,] 0.0000000 0.003240203 0.4411160 0.6143926
-[4,] 0.1095034 0.000000000 0.9146666 0.8328578
+     [,1]  [,2] [,3]  [,4] [,5] [,6] [,7] [,8] [,9] [,10] [,11]
+[1,] 10.0 10.00 10.0 10.00 4.10 1.58 3.73 1.65 6.86  5.05  8.28
+[2,] 17.7 10.00 14.4  9.71 4.05 1.54 3.35 1.83 6.02  4.41  6.61
+[3,] 18.8  9.33 14.4  9.01 3.97 1.39 3.16 1.40 5.64  4.15  6.33
+[4,] 18.9  9.73 14.7  9.48 4.28 1.49 3.23 1.55 6.19  4.62  6.88
+     [,12] [,13]   [,14] [,15] [,16]
+[1,]  6.37 0.101 0.00000 0.926 0.849
+[2,]  5.68 0.148 0.00000 0.737 0.787
+[3,]  5.17 0.000 0.00324 0.441 0.614
+[4,]  5.66 0.110 0.00000 0.915 0.833
 \end{Soutput}
 \begin{Sinput}
-> qux
+> print(qux, digits = 3)
 \end{Sinput}
 \begin{Soutput}
- [1] 18.9470263  9.7330707 14.7137106  9.4784515  4.2762293
- [6]  1.4908095  3.2295806  1.5532045  6.1869824  4.6239946
-[11]  6.8814927  5.6601564  0.1095034  0.0000000  0.9146666
-[16]  0.8328578
+ [1] 18.947  9.733 14.714  9.478  4.276  1.491  3.230  1.553
+ [9]  6.187  4.624  6.881  5.660  0.110  0.000  0.915  0.833
 \end{Soutput}
 \begin{Sinput}
 > apply(time.save, 2, sum)
 \end{Sinput}
 \begin{Soutput}
  user.self   sys.self    elapsed user.child  sys.child 
-   108.474      0.000    108.464      0.000      0.000 
+    90.701      0.000     91.010      0.000      0.000 
 \end{Soutput}
 \end{Schunk}
 
@@ -665,86 +662,50 @@ Now that the pseudoprior is adjusted well enough, we need to perhaps
 make other adjustments to get acceptance rates near 20\%.
 \begin{Schunk}
 \begin{Sinput}
-> out$accepti
+> print(out$accepti, digits = 3)
 \end{Sinput}
 \begin{Soutput}
-           [,1]      [,2]      [,3]      [,4]      [,5]
- [1,]        NA 0.2392567 0.2122222        NA 0.2207637
- [2,] 0.2941989        NA        NA 0.2500000        NA
- [3,] 0.2362003        NA        NA 0.2609254        NA
- [4,]        NA 0.2775120 0.3292496        NA        NA
- [5,] 0.2199747        NA        NA        NA        NA
- [6,]        NA 0.1552463        NA        NA 0.2347826
- [7,]        NA        NA 0.1579487        NA 0.2902893
- [8,]        NA        NA        NA 0.1472192        NA
- [9,] 0.3443478        NA        NA        NA        NA
-[10,]        NA 0.2300469        NA        NA        NA
-[11,]        NA        NA 0.2327448        NA        NA
-[12,]        NA        NA        NA 0.2503864        NA
-[13,]        NA        NA        NA        NA 0.2430998
-[14,]        NA        NA        NA        NA        NA
-[15,]        NA        NA        NA        NA        NA
-[16,]        NA        NA        NA        NA        NA
-           [,6]      [,7]      [,8]      [,9]     [,10]
- [1,]        NA        NA        NA 0.2182030        NA
- [2,] 0.1925287        NA        NA        NA 0.2299383
- [3,]        NA 0.1992574        NA        NA        NA
- [4,]        NA        NA 0.2157191        NA        NA
- [5,] 0.2871537 0.3480454        NA        NA        NA
- [6,]        NA        NA 0.2943005        NA        NA
- [7,]        NA        NA 0.2502629        NA        NA
- [8,] 0.3119266 0.2540193        NA        NA        NA
- [9,]        NA        NA        NA        NA 0.2508651
-[10,]        NA        NA        NA 0.2416107        NA
-[11,]        NA        NA        NA 0.2125436        NA
-[12,]        NA        NA        NA        NA 0.2960630
-[13,]        NA        NA        NA 0.1707060        NA
-[14,] 0.2347140        NA        NA        NA 0.1394892
-[15,]        NA 0.3637902        NA        NA        NA
-[16,]        NA        NA 0.2719072        NA        NA
-          [,11]     [,12]     [,13]     [,14]     [,15]
- [1,]        NA        NA        NA        NA        NA
- [2,]        NA        NA        NA        NA        NA
- [3,] 0.2065789        NA        NA        NA        NA
- [4,]        NA 0.2503937        NA        NA        NA
- [5,]        NA        NA 0.3187415        NA        NA
- [6,]        NA        NA        NA 0.2373950        NA
- [7,]        NA        NA        NA        NA 0.2285714
- [8,]        NA        NA        NA        NA        NA
- [9,] 0.1849427        NA 0.2535885        NA        NA
-[10,]        NA 0.2768116        NA 0.2201550        NA
-[11,]        NA 0.2859451        NA        NA 0.2173228
-[12,] 0.2787402        NA        NA        NA        NA
-[13,]        NA        NA        NA 0.3325688 0.2688889
-[14,]        NA        NA 0.2721154        NA        NA
-[15,] 0.2166934        NA 0.3615160        NA        NA
-[16,]        NA 0.1775586        NA 0.3317536 0.2301496
-          [,16]
- [1,]        NA
- [2,]        NA
- [3,]        NA
- [4,]        NA
- [5,]        NA
- [6,]        NA
- [7,]        NA
- [8,] 0.2508631
- [9,]        NA
-[10,]        NA
-[11,]        NA
-[12,] 0.2364532
-[13,]        NA
-[14,] 0.2659574
-[15,] 0.2916053
-[16,]        NA
+       [,1]  [,2]  [,3]  [,4]  [,5]  [,6]  [,7]  [,8]  [,9]
+ [1,]    NA 0.239 0.212    NA 0.221    NA    NA    NA 0.218
+ [2,] 0.294    NA    NA 0.250    NA 0.193    NA    NA    NA
+ [3,] 0.236    NA    NA 0.261    NA    NA 0.199    NA    NA
+ [4,]    NA 0.278 0.329    NA    NA    NA    NA 0.216    NA
+ [5,] 0.220    NA    NA    NA    NA 0.287 0.348    NA    NA
+ [6,]    NA 0.155    NA    NA 0.235    NA    NA 0.294    NA
+ [7,]    NA    NA 0.158    NA 0.290    NA    NA 0.250    NA
+ [8,]    NA    NA    NA 0.147    NA 0.312 0.254    NA    NA
+ [9,] 0.344    NA    NA    NA    NA    NA    NA    NA    NA
+[10,]    NA 0.230    NA    NA    NA    NA    NA    NA 0.242
+[11,]    NA    NA 0.233    NA    NA    NA    NA    NA 0.213
+[12,]    NA    NA    NA 0.250    NA    NA    NA    NA    NA
+[13,]    NA    NA    NA    NA 0.243    NA    NA    NA 0.171
+[14,]    NA    NA    NA    NA    NA 0.235    NA    NA    NA
+[15,]    NA    NA    NA    NA    NA    NA 0.364    NA    NA
+[16,]    NA    NA    NA    NA    NA    NA    NA 0.272    NA
+      [,10] [,11] [,12] [,13] [,14] [,15] [,16]
+ [1,]    NA    NA    NA    NA    NA    NA    NA
+ [2,] 0.230    NA    NA    NA    NA    NA    NA
+ [3,]    NA 0.207    NA    NA    NA    NA    NA
+ [4,]    NA    NA 0.250    NA    NA    NA    NA
+ [5,]    NA    NA    NA 0.319    NA    NA    NA
+ [6,]    NA    NA    NA    NA 0.237    NA    NA
+ [7,]    NA    NA    NA    NA    NA 0.229    NA
+ [8,]    NA    NA    NA    NA    NA    NA 0.251
+ [9,] 0.251 0.185    NA 0.254    NA    NA    NA
+[10,]    NA    NA 0.277    NA 0.220    NA    NA
+[11,]    NA    NA 0.286    NA    NA 0.217    NA
+[12,] 0.296 0.279    NA    NA    NA    NA 0.236
+[13,]    NA    NA    NA    NA 0.333 0.269    NA
+[14,] 0.139    NA    NA 0.272    NA    NA 0.266
+[15,]    NA 0.217    NA 0.362    NA    NA 0.292
+[16,]    NA    NA 0.178    NA 0.332 0.230    NA
 \end{Soutput}
 \begin{Sinput}
-> out$acceptx
+> print(out$acceptx, digits = 3)
 \end{Sinput}
 \begin{Soutput}
- [1] 0.19633658 0.09694989 0.07855559 0.05680561 0.10568032
- [6] 0.05587045 0.05044360 0.03606650 0.10563674 0.06666667
-[11] 0.05854701 0.03254552 0.06180666 0.03780718 0.03388525
-[16] 0.02426036
+ [1] 0.1963 0.0969 0.0786 0.0568 0.1057 0.0559 0.0504 0.0361
+ [9] 0.1056 0.0667 0.0585 0.0325 0.0618 0.0378 0.0339 0.0243
 \end{Soutput}
 \end{Schunk}
 The acceptance rates for swaps seem o. k.
@@ -763,12 +724,11 @@ acceptance rates for within model moves by adjusting the scaling.
 \begin{Sinput}
 > out <- temper(out, scale = 0.5, log.pseudo.prior = qux)
 > time.save <- rbind(time.save, out$time, deparse.level = 0)
-> out$acceptx
+> print(out$acceptx, digits = 3)
 \end{Sinput}
 \begin{Soutput}
- [1] 0.4003067 0.2870911 0.2511125 0.2217288 0.3143193 0.2468896
- [7] 0.2245908 0.2063492 0.3088322 0.2260388 0.2026928 0.1677290
-[13] 0.2470217 0.1932432 0.1964912 0.1526632
+ [1] 0.400 0.287 0.251 0.222 0.314 0.247 0.225 0.206 0.309 0.226
+[11] 0.203 0.168 0.247 0.193 0.196 0.153
 \end{Soutput}
 \end{Schunk}
 Looks o.~k.\ now.
@@ -776,22 +736,32 @@ Looks o.~k.\ now.
 Inspection of autocorrelation functions for components
 of \verb@out$ibatch@ (not shown) says batch length needs to be at least
 4 times longer.  We make it 10 times longer for safety.
+
+Because this run takes longer than CRAN vingettes are supposed to
+take, we save the results to a file
+and load the results from this file if it already exists.
 \begin{Schunk}
 \begin{Sinput}
-> out <- temper(out, blen = 10 * out$blen, log.pseudo.prior = qux)
+> lout <- suppressWarnings(try(load("bfst2.rda"), silent = TRUE))
+> if (inherits(lout, "try-error")) {
++     out <- temper(out, blen = 10 * out$blen, log.pseudo.prior = qux)
++     save(out, file = "bfst2.rda")
++ } else {
++     .Random.seed <- out$final.seed
++ }
 > time.save <- rbind(time.save, out$time, deparse.level = 0)
 > foo <- apply(time.save, 2, sum)
-> foo.min <- floor(foo[1]/60)
+> foo.min <- floor(foo[1] / 60)
 > foo.sec <- foo[1] - 60 * foo.min
 > c(foo.min, foo.sec)
 \end{Sinput}
 \begin{Soutput}
 user.self user.self 
-    6.000    46.473 
+    5.000    36.594 
 \end{Soutput}
 \end{Schunk}
 The total time for all runs of the temper function was
-6 minutes and 46.5 seconds.
+5 minutes and 36.6 seconds.
 
 \subsection{Bayes Factor Calculations}
 
@@ -799,9 +769,9 @@ Now we calculate log 10 Bayes factors relative to the model with the highest
 unnormalized Bayes factor.
 \begin{Schunk}
 \begin{Sinput}
-> log.10.unnorm.bayes <- (qux - log(colMeans(out$ibatch)))/log(10)
-> k <- seq(along = log.10.unnorm.bayes)[log.10.unnorm.bayes == 
-+     min(log.10.unnorm.bayes)]
+> log.10.unnorm.bayes <- (qux - log(colMeans(out$ibatch))) / log(10)
+> k <- seq(along = log.10.unnorm.bayes)[log.10.unnorm.bayes
++     == min(log.10.unnorm.bayes)]
 > models[k, ]
 \end{Sinput}
 \begin{Soutput}
@@ -852,10 +822,11 @@ derivatives
 \end{align*}
 \begin{Schunk}
 \begin{Sinput}
-> fred <- var(out$ibatch)/out$nbatch
+> fred <- var(out$ibatch) / out$nbatch
 > sally <- colMeans(out$ibatch)
-> mcse.log.10.bayes <- (1/log(10)) * sqrt(diag(fred)/sally^2 - 
-+     2 * fred[, k]/(sally * sally[k]) + fred[k, k]/sally[k]^2)
+> mcse.log.10.bayes <- (1 / log(10)) * sqrt(diag(fred) / sally^2 -
++     2 * fred[ , k] / (sally * sally[k]) +
++     fred[k, k] / sally[k]^2)
 > mcse.log.10.bayes
 \end{Sinput}
 \begin{Soutput}
@@ -900,9 +871,9 @@ and calculates the standard deviation of this quantity by batch means
 \begin{Sinput}
 > ibar <- colMeans(out$ibatch)
 > herman <- sweep(out$ibatch, 2, ibar, "/")
-> herman <- sweep(herman, 1, herman[, k], "-")
-> mcse.log.10.bayes.too <- (1/log(10)) * apply(herman, 
-+     2, sd)/sqrt(out$nbatch)
+> herman <- sweep(herman, 1, herman[ , k], "-")
+> mcse.log.10.bayes.too <- (1 / log(10)) *
++     apply(herman, 2, sd) /sqrt(out$nbatch)
 > all.equal(mcse.log.10.bayes, mcse.log.10.bayes.too)
 \end{Sinput}
 \begin{Soutput}
@@ -942,7 +913,7 @@ more on this issue.''  The first was about within model priors for the
 ``padding'' components of within model parameter vectors
 $g_{\text{pad}}(\theta_{\text{pad}} \mid m)$ in
 the notation in \eqref{eq:unnormalized-bayes-factors}.
-Rather that choose these so that they do not depend on the data (as we did),
+Rather than choose these so that they do not depend on the data (as we did),
 it would be better (if more trouble) to choose them differently for each
 ``padding'' component, centering $g_{\text{pad}}(\theta_{\text{pad}} \mid m)$
 so the distribution of a component of $\theta_{\text{pad}}$ is near to the
@@ -952,7 +923,7 @@ the \texttt{neighbors} argument of the \texttt{temper} function).
 The other remaining issue is adjusting acceptance rates for jumps.  There
 is no way to adjust this other than by changing the number of models and
 their definitions.  But the models we have cannot be changed; if we are
-to calculate Bayes factors form them, then we must sample them as they are.
+to calculate Bayes factors for them, then we must sample them as they are.
 But we can insert new models between old models.  For example,
 if the acceptance for swaps between model $i$ and model $j$ is too low, then
 we can insert distribution $k$ between them that has unnormalized density
@@ -1037,6 +1008,4 @@ Torrie, G.~M., and Valleau, J.~P. (1977).
 \end{thebibliography}
 
 \end{document}
-
-
 
