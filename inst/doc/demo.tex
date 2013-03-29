@@ -16,7 +16,7 @@
 \begin{document}
 
 
-\title{MCMC Package Example (Version 0.9-1)}
+\title{MCMC Package Example (Version 0.9-2)}
 \author{Charles J. Geyer}
 \maketitle
 
@@ -254,7 +254,7 @@ and look at the results.
 \end{Sinput}
 \begin{Soutput}
    user  system elapsed 
-  1.529   0.000   1.530 
+  2.209   0.000   2.225 
 \end{Soutput}
 \end{Schunk}
 
@@ -333,7 +333,7 @@ length 100 to be safe.
 \end{Sinput}
 \begin{Soutput}
    user  system elapsed 
-  1.664   0.001   1.667 
+  2.264   0.000   2.288 
 \end{Soutput}
 \end{Schunk}
 
@@ -518,7 +518,7 @@ sampler so that the MCSE are less than 0.01'')
 \end{Sinput}
 \begin{Soutput}
    user  system elapsed 
- 32.095   0.000  32.127 
+ 44.943   0.116  46.342 
 \end{Soutput}
 \begin{Sinput}
 > foo <- apply(out$batch, 2, mean)
@@ -583,8 +583,8 @@ First the posterior means,
 \caption{Posterior Means}
 \label{tab:mu}
 \begin{center}
-% latex table generated in R 2.15.1 by xtable 1.7-0 package
-% Tue Aug 21 14:05:34 2012
+% latex table generated in R 2.15.3 by xtable 1.7-1 package
+% Sat Mar 30 22:32:34 2013
 \begin{tabular}{lccccc}
   \hline
  & constant & $x_1$ & $x_2$ & $x_3$ & $x_4$ \\ 
@@ -599,8 +599,8 @@ then the posterior variances (table on page~\pageref{tab:sigmasq}),
 \caption{Posterior Variances}
 \label{tab:sigmasq}
 \begin{center}
-% latex table generated in R 2.15.1 by xtable 1.7-0 package
-% Tue Aug 21 14:05:34 2012
+% latex table generated in R 2.15.3 by xtable 1.7-1 package
+% Sat Mar 30 22:32:34 2013
 \begin{tabular}{lccccc}
   \hline
  & constant & $x_1$ & $x_2$ & $x_3$ & $x_4$ \\ 
@@ -616,8 +616,8 @@ and finally the posterior standard deviations
 \caption{Posterior Standard Deviations}
 \label{tab:sigma}
 \begin{center}
-% latex table generated in R 2.15.1 by xtable 1.7-0 package
-% Tue Aug 21 14:05:34 2012
+% latex table generated in R 2.15.3 by xtable 1.7-1 package
+% Sat Mar 30 22:32:34 2013
 \begin{tabular}{lccccc}
   \hline
  & constant & $x_1$ & $x_2$ & $x_3$ & $x_4$ \\ 
@@ -630,7 +630,7 @@ estimate & 0.3031 & 0.3650 & 0.3637 & 0.3588 & 0.3997 \\
 
 Note for the record that the all the results presented in the tables
 are from ``one long run'' where long here took only
-32.095 seconds (on whatever computer it was run on).
+44.943 seconds (on whatever computer it was run on).
 
 \section{New Variance Estimation Functions}
 
