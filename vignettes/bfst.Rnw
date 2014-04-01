@@ -18,13 +18,15 @@
 
 % \VignetteIndexEntry{Bayes Factors via Serial Tempering}
 
-\usepackage{/home/geyer/local/current/lib64/R/share/texmf/tex/latex/Sweave}
 \begin{document}
 
 \title{Bayes Factors via Serial Tempering}
 \author{Charles J. Geyer}
 \maketitle
 
+<<foo,include=FALSE,echo=FALSE>>=
+options(keep.source = TRUE, width = 65)
+@
 
 \section{Introduction}
 
@@ -351,22 +353,25 @@ from the R command line
 or Microsoft Windows).  This may require root or administrator privileges.
 
 Assuming the \verb@mcmc@ package has been installed, we load it
-\begin{Schunk}
-\begin{Sinput}
-> library(mcmc)
-\end{Sinput}
-\end{Schunk}
+<<library>>=
+library(mcmc)
+@
+<<baz,include=FALSE,echo=FALSE>>=
+baz <- library(help = "mcmc")
+baz <- baz$info[[1]]
+baz <- baz[grep("Version", baz)]
+baz <- sub("^Version: *", "", baz)
+bazzer <- paste(R.version$major, R.version$minor, sep = ".")
+@
 The version of the package used to make this document
-is 0.9 (which is available on CRAN).
-The version of R used to make this document is 2.15.1.
+is \Sexpr{baz} (which is available on CRAN).
+The version of R used to make this document is \Sexpr{bazzer}.
 
 We also set the random number generator seed so that the results are
 reproducible.
-\begin{Schunk}
-\begin{Sinput}
-> set.seed(42)
-\end{Sinput}
-\end{Schunk}
+<<set-seed>>=
+set.seed(42)
+@
 To get different results, change the setting or don't set the seed at all.
 
 \section{Logistic Regression Example}
@@ -378,41 +383,12 @@ There are five variables in the data set, the response \verb@y@
 and four predictors, \verb@x1@, \verb@x2@, \verb@x3@, and \verb@x4@.
 
 A frequentist analysis for the problem is done by the following R statements
-\begin{Schunk}
-\begin{Sinput}
-> data(logit)
-> out <- glm(y ~ x1 + x2 + x3 + x4, data = logit,
-+     family = binomial, x = TRUE)
-> summary(out)
-\end{Sinput}
-\begin{Soutput}
-Call:
-glm(formula = y ~ x1 + x2 + x3 + x4, family = binomial, data = logit, 
-    x = TRUE)
-
-Deviance Residuals: 
-    Min       1Q   Median       3Q      Max  
--1.7461  -0.6907   0.1540   0.7041   2.1943  
-
-Coefficients:
-            Estimate Std. Error z value Pr(>|z|)   
-(Intercept)   0.6328     0.3007   2.104  0.03536 * 
-x1            0.7390     0.3616   2.043  0.04100 * 
-x2            1.1137     0.3627   3.071  0.00213 **
-x3            0.4781     0.3538   1.351  0.17663   
-x4            0.6944     0.3989   1.741  0.08172 . 
----
-Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1 
-
-(Dispersion parameter for binomial family taken to be 1)
-
-    Null deviance: 137.628  on 99  degrees of freedom
-Residual deviance:  87.668  on 95  degrees of freedom
-AIC: 97.668
-
-Number of Fisher Scoring iterations: 6
-\end{Soutput}
-\end{Schunk}
+<<frequentist>>=
+data(logit)
+out <- glm(y ~ x1 + x2 + x3 + x4, data = logit,
+    family = binomial, x = TRUE)
+summary(out)
+@
 
 But this example isn't about frequentist analysis, we want a Bayesian
 analysis.  For our Bayesian analysis we assume the same data model as the
@@ -427,41 +403,21 @@ predictors, \verb@x1@, \verb@x2@, \verb@x3@, and \verb@x4@.
 \subsection{Setup}
 
 We set up a matrix that indicates these models.
-\begin{Schunk}
-\begin{Sinput}
-> varnam <- names(coefficients(out))
-> varnam <- varnam[varnam != "(Intercept)"]
-> nvar <- length(varnam)
-> models <- NULL
-> foo <- seq(0, 2^nvar - 1) 
-> for (i in 1:nvar) {
-+     bar <- foo %/% 2^(i - 1)
-+     bar <- bar %% 2
-+     models <- cbind(bar, models, deparse.level = 0)
-+ }
-> colnames(models) <- varnam
-> models
-\end{Sinput}
-\begin{Soutput}
-      x1 x2 x3 x4
- [1,]  0  0  0  0
- [2,]  0  0  0  1
- [3,]  0  0  1  0
- [4,]  0  0  1  1
- [5,]  0  1  0  0
- [6,]  0  1  0  1
- [7,]  0  1  1  0
- [8,]  0  1  1  1
- [9,]  1  0  0  0
-[10,]  1  0  0  1
-[11,]  1  0  1  0
-[12,]  1  0  1  1
-[13,]  1  1  0  0
-[14,]  1  1  0  1
-[15,]  1  1  1  0
-[16,]  1  1  1  1
-\end{Soutput}
-\end{Schunk}
+<<models>>=
+varnam <- names(coefficients(out))
+varnam <- varnam[varnam != "(Intercept)"]
+nvar <- length(varnam)
+
+models <- NULL
+foo <- seq(0, 2^nvar - 1) 
+for (i in 1:nvar) {
+    bar <- foo %/% 2^(i - 1)
+    bar <- bar %% 2
+    models <- cbind(bar, models, deparse.level = 0)
+}
+colnames(models) <- varnam
+models
+@
 In each row, 1 indicates the predictor is in the model and 0 indicates it is
 out.
 
@@ -469,22 +425,20 @@ The function \texttt{temper} in the \text{mcmc} package that does tempering
 requires a notion of neighbors among models.  It attempts jumps only between
 neighboring models.  Here we choose models to be neighbors if they differ
 only by one predictor.
-\begin{Schunk}
-\begin{Sinput}
-> neighbors <- matrix(FALSE, nrow(models), nrow(models))
-> for (i in 1:nrow(neighbors)) {
-+     for (j in 1:ncol(neighbors)) {
-+         foo <- models[i, ]
-+         bar <- models[j, ]
-+         if (sum(foo != bar) == 1) neighbors[i, j] <- TRUE
-+     }
-+ }
-\end{Sinput}
-\end{Schunk}
+<<neighbor>>=
+neighbors <- matrix(FALSE, nrow(models), nrow(models))
+for (i in 1:nrow(neighbors)) {
+    for (j in 1:ncol(neighbors)) {
+        foo <- models[i, ]
+        bar <- models[j, ]
+        if (sum(foo != bar) == 1) neighbors[i, j] <- TRUE
+    }
+}
+@
 
 Now we specify the equilibrium distribution of the ST chain.  Its state vector
 is $(i, x)$ or $(m, \theta)$ in our alternative notations, where $i$ is an
-integer between $1$ and \verb@nrow(models)@ = 16 and
+integer between $1$ and \verb@nrow(models)@ = \Sexpr{nrow(models)} and
 $\theta$ is the parameter vector ``padded'' to always be the same length,
 so we take it to be the length of the parameter vector of the full model
 which is \verb@length(out$coefficients)@ or \verb@ncol(models) + 1@ which makes
@@ -511,86 +465,58 @@ are the model matrix of the full model \texttt{modmat}, the matrix
 vector of the ST chain) to which predictors are in or out of the model,
 and the data vector \texttt{y}, but these are not passed as arguments to our
 function and instead are found in the R global environment.
-\begin{Schunk}
-\begin{Sinput}
-> modmat <- out$x
-> y <- logit$y
-> ludfun <- function(state, log.pseudo.prior) {
-+     stopifnot(is.numeric(state))
-+     stopifnot(length(state) == ncol(models) + 2)
-+     icomp <- state[1]
-+     stopifnot(icomp == as.integer(icomp))
-+     stopifnot(1 <= icomp && icomp <= nrow(models))
-+     stopifnot(is.numeric(log.pseudo.prior))
-+     stopifnot(length(log.pseudo.prior) == nrow(models))
-+     beta <- state[-1]
-+     inies <- c(TRUE, as.logical(models[icomp, ]))
-+     beta.logl <- beta
-+     beta.logl[! inies] <- 0
-+     eta <- as.numeric(modmat %*% beta.logl)
-+     logp <- ifelse(eta < 0, eta - log1p(exp(eta)), - log1p(exp(- eta)))
-+     logq <- ifelse(eta < 0, - log1p(exp(eta)), - eta - log1p(exp(- eta)))
-+     logl <- sum(logp[y == 1]) + sum(logq[y == 0])
-+     logl + sum(dnorm(beta, 0, 2, log = TRUE)) + log.pseudo.prior[icomp]
-+ }
-\end{Sinput}
-\end{Schunk}
+<<ludfun>>=
+modmat <- out$x
+y <- logit$y
+
+ludfun <- function(state, log.pseudo.prior) {
+    stopifnot(is.numeric(state))
+    stopifnot(length(state) == ncol(models) + 2)
+    icomp <- state[1]
+    stopifnot(icomp == as.integer(icomp))
+    stopifnot(1 <= icomp && icomp <= nrow(models))
+    stopifnot(is.numeric(log.pseudo.prior))
+    stopifnot(length(log.pseudo.prior) == nrow(models))
+    beta <- state[-1]
+    inies <- c(TRUE, as.logical(models[icomp, ]))
+    beta.logl <- beta
+    beta.logl[! inies] <- 0
+    eta <- as.numeric(modmat %*% beta.logl)
+    logp <- ifelse(eta < 0, eta - log1p(exp(eta)), - log1p(exp(- eta)))
+    logq <- ifelse(eta < 0, - log1p(exp(eta)), - eta - log1p(exp(- eta)))
+    logl <- sum(logp[y == 1]) + sum(logq[y == 0])
+    logl + sum(dnorm(beta, 0, 2, log = TRUE)) + log.pseudo.prior[icomp]
+}
+@
 
 \subsection{Trial and Error}
 
 Now we are ready to try it out.  We start in the full model at its MLE,
 and we initialize \texttt{log.pseudo.prior} at all zeros, having no idea
 \emph{a priori} what it should be.
-\begin{Schunk}
-\begin{Sinput}
-> state.initial <- c(nrow(models), out$coefficients)
-> qux <- rep(0, nrow(models))
-> out <- temper(ludfun, initial = state.initial, neighbors = neighbors,
-+     nbatch = 1000, blen = 100, log.pseudo.prior = qux)
-> names(out)
-\end{Sinput}
-\begin{Soutput}
- [1] "lud"          "initial"      "neighbors"    "nbatch"      
- [5] "blen"         "nspac"        "scale"        "outfun"      
- [9] "debug"        "parallel"     "initial.seed" "final.seed"  
-[13] "time"         "batch"        "acceptx"      "accepti"     
-[17] "initial"      "final"        "ibatch"      
-\end{Soutput}
-\begin{Sinput}
-> out$time
-\end{Sinput}
-\begin{Soutput}
-   user  system elapsed 
- 22.917   0.000  22.994 
-\end{Soutput}
-\end{Schunk}
+<<try1>>=
+state.initial <- c(nrow(models), out$coefficients)
+
+qux <- rep(0, nrow(models))
+
+out <- temper(ludfun, initial = state.initial, neighbors = neighbors,
+    nbatch = 1000, blen = 100, log.pseudo.prior = qux)
+
+names(out)
+out$time
+@
 So what happened?
-\begin{Schunk}
-\begin{Sinput}
-> ibar <- colMeans(out$ibatch)
-> ibar
-\end{Sinput}
-\begin{Soutput}
- [1] 0.00000 0.00000 0.00000 0.00000 0.00524 0.06489 0.00754
- [8] 0.06021 0.00033 0.00202 0.00008 0.00054 0.28473 0.31487
-[15] 0.12478 0.13477
-\end{Soutput}
-\end{Schunk}
+<<what>>=
+ibar <- colMeans(out$ibatch)
+ibar
+@
 The ST chain did not mix well, several models not being visited even once.
 So we adjust the pseudo priors to get uniform distribution.
-\begin{Schunk}
-\begin{Sinput}
-> qux <- qux + pmin(log(max(ibar) / ibar), 10)
-> qux <- qux - min(qux)
-> qux
-\end{Sinput}
-\begin{Soutput}
- [1] 10.0000000 10.0000000 10.0000000 10.0000000  4.0958384
- [6]  1.5794663  3.7319377  1.6543214  6.8608225  5.0490623
-[11]  8.2778885  6.3683460  0.1006185  0.0000000  0.9256077
-[16]  0.8485902
-\end{Soutput}
-\end{Schunk}
+<<adjust>>=
+qux <- qux + pmin(log(max(ibar) / ibar), 10)
+qux <- qux - min(qux)
+qux
+@
 The new pseudoprior should be proportional to \verb@1 / ibar@ if \texttt{ibar}
 is an accurate estimate of \eqref{eq:st-expectations}, but this makes no sense
 when the estimates are bad, in particular, when the are exactly zero.  Thus
@@ -609,128 +535,47 @@ Now we repeat this until the log pseudoprior ``converges'' roughly.
 Because this loop takes longer than CRAN vingettes are supposed to
 take, we save the results to a file
 and load the results from this file if it already exists.
-\begin{Schunk}
-\begin{Sinput}
-> lout <- suppressWarnings(try(load("bfst1.rda"), silent = TRUE))
-> if (inherits(lout, "try-error")) {
-+     qux.save <- qux
-+     time.save <- out$time
-+     repeat{
-+         out <- temper(out, log.pseudo.prior = qux)
-+         ibar <- colMeans(out$ibatch)
-+         qux <- qux + pmin(log(max(ibar) / ibar), 10)
-+         qux <- qux - min(qux)
-+         qux.save <- rbind(qux.save, qux, deparse.level = 0)
-+         time.save <- rbind(time.save, out$time, deparse.level = 0)
-+         if (max(ibar) / min(ibar) < 2) break
-+     }
-+     save(out, qux, qux.save, time.save, file = "bfst1.rda")
-+ } else {
-+     .Random.seed <- out$final.seed
-+ }
-> print(qux.save, digits = 3)
-\end{Sinput}
-\begin{Soutput}
-     [,1]  [,2] [,3]  [,4] [,5] [,6] [,7] [,8] [,9] [,10] [,11]
-[1,] 10.0 10.00 10.0 10.00 4.10 1.58 3.73 1.65 6.86  5.05  8.28
-[2,] 17.7 10.00 14.4  9.71 4.05 1.54 3.35 1.83 6.02  4.41  6.61
-[3,] 18.8  9.33 14.4  9.01 3.97 1.39 3.16 1.40 5.64  4.15  6.33
-[4,] 18.9  9.73 14.7  9.48 4.28 1.49 3.23 1.55 6.19  4.62  6.88
-     [,12] [,13]   [,14] [,15] [,16]
-[1,]  6.37 0.101 0.00000 0.926 0.849
-[2,]  5.68 0.148 0.00000 0.737 0.787
-[3,]  5.17 0.000 0.00324 0.441 0.614
-[4,]  5.66 0.110 0.00000 0.915 0.833
-\end{Soutput}
-\begin{Sinput}
-> print(qux, digits = 3)
-\end{Sinput}
-\begin{Soutput}
- [1] 18.947  9.733 14.714  9.478  4.276  1.491  3.230  1.553
- [9]  6.187  4.624  6.881  5.660  0.110  0.000  0.915  0.833
-\end{Soutput}
-\begin{Sinput}
-> apply(time.save, 2, sum)
-\end{Sinput}
-\begin{Soutput}
- user.self   sys.self    elapsed user.child  sys.child 
-    90.701      0.000     91.010      0.000      0.000 
-\end{Soutput}
-\end{Schunk}
+<<iterate>>=
+lout <- suppressWarnings(try(load("bfst1.rda"), silent = TRUE))
+if (inherits(lout, "try-error")) {
+    qux.save <- qux
+    time.save <- out$time
+    repeat{
+        out <- temper(out, log.pseudo.prior = qux)
+        ibar <- colMeans(out$ibatch)
+        qux <- qux + pmin(log(max(ibar) / ibar), 10)
+        qux <- qux - min(qux)
+        qux.save <- rbind(qux.save, qux, deparse.level = 0)
+        time.save <- rbind(time.save, out$time, deparse.level = 0)
+        if (max(ibar) / min(ibar) < 2) break
+    }
+    save(out, qux, qux.save, time.save, file = "bfst1.rda")
+} else {
+    .Random.seed <- out$final.seed
+}
+print(qux.save, digits = 3)
+print(qux, digits = 3)
+apply(time.save, 2, sum)
+@
 
 Now that the pseudoprior is adjusted well enough, we need to perhaps
 make other adjustments to get acceptance rates near 20\%.
-\begin{Schunk}
-\begin{Sinput}
-> print(out$accepti, digits = 3)
-\end{Sinput}
-\begin{Soutput}
-       [,1]  [,2]  [,3]  [,4]  [,5]  [,6]  [,7]  [,8]  [,9]
- [1,]    NA 0.239 0.212    NA 0.221    NA    NA    NA 0.218
- [2,] 0.294    NA    NA 0.250    NA 0.193    NA    NA    NA
- [3,] 0.236    NA    NA 0.261    NA    NA 0.199    NA    NA
- [4,]    NA 0.278 0.329    NA    NA    NA    NA 0.216    NA
- [5,] 0.220    NA    NA    NA    NA 0.287 0.348    NA    NA
- [6,]    NA 0.155    NA    NA 0.235    NA    NA 0.294    NA
- [7,]    NA    NA 0.158    NA 0.290    NA    NA 0.250    NA
- [8,]    NA    NA    NA 0.147    NA 0.312 0.254    NA    NA
- [9,] 0.344    NA    NA    NA    NA    NA    NA    NA    NA
-[10,]    NA 0.230    NA    NA    NA    NA    NA    NA 0.242
-[11,]    NA    NA 0.233    NA    NA    NA    NA    NA 0.213
-[12,]    NA    NA    NA 0.250    NA    NA    NA    NA    NA
-[13,]    NA    NA    NA    NA 0.243    NA    NA    NA 0.171
-[14,]    NA    NA    NA    NA    NA 0.235    NA    NA    NA
-[15,]    NA    NA    NA    NA    NA    NA 0.364    NA    NA
-[16,]    NA    NA    NA    NA    NA    NA    NA 0.272    NA
-      [,10] [,11] [,12] [,13] [,14] [,15] [,16]
- [1,]    NA    NA    NA    NA    NA    NA    NA
- [2,] 0.230    NA    NA    NA    NA    NA    NA
- [3,]    NA 0.207    NA    NA    NA    NA    NA
- [4,]    NA    NA 0.250    NA    NA    NA    NA
- [5,]    NA    NA    NA 0.319    NA    NA    NA
- [6,]    NA    NA    NA    NA 0.237    NA    NA
- [7,]    NA    NA    NA    NA    NA 0.229    NA
- [8,]    NA    NA    NA    NA    NA    NA 0.251
- [9,] 0.251 0.185    NA 0.254    NA    NA    NA
-[10,]    NA    NA 0.277    NA 0.220    NA    NA
-[11,]    NA    NA 0.286    NA    NA 0.217    NA
-[12,] 0.296 0.279    NA    NA    NA    NA 0.236
-[13,]    NA    NA    NA    NA 0.333 0.269    NA
-[14,] 0.139    NA    NA 0.272    NA    NA 0.266
-[15,]    NA 0.217    NA 0.362    NA    NA 0.292
-[16,]    NA    NA 0.178    NA 0.332 0.230    NA
-\end{Soutput}
-\begin{Sinput}
-> print(out$acceptx, digits = 3)
-\end{Sinput}
-\begin{Soutput}
- [1] 0.1963 0.0969 0.0786 0.0568 0.1057 0.0559 0.0504 0.0361
- [9] 0.1056 0.0667 0.0585 0.0325 0.0618 0.0378 0.0339 0.0243
-\end{Soutput}
-\end{Schunk}
+<<accept-i-x>>=
+print(out$accepti, digits = 3)
+print(out$acceptx, digits = 3)
+@
 The acceptance rates for swaps seem o. k.
-\begin{Schunk}
-\begin{Sinput}
-> min(as.vector(out$accepti), na.rm = TRUE)
-\end{Sinput}
-\begin{Soutput}
-[1] 0.1394892
-\end{Soutput}
-\end{Schunk}
+<<accept-i-min>>=
+min(as.vector(out$accepti), na.rm = TRUE)
+@
 and there is nothing simple we can do to adjust them (adjustment is possible,
 see the discussion section for more on this issue).  We adjust the
 acceptance rates for within model moves by adjusting the scaling.
-\begin{Schunk}
-\begin{Sinput}
-> out <- temper(out, scale = 0.5, log.pseudo.prior = qux)
-> time.save <- rbind(time.save, out$time, deparse.level = 0)
-> print(out$acceptx, digits = 3)
-\end{Sinput}
-\begin{Soutput}
- [1] 0.400 0.287 0.251 0.222 0.314 0.247 0.225 0.206 0.309 0.226
-[11] 0.203 0.168 0.247 0.193 0.196 0.153
-\end{Soutput}
-\end{Schunk}
+<<scale>>=
+out <- temper(out, scale = 0.5, log.pseudo.prior = qux)
+time.save <- rbind(time.save, out$time, deparse.level = 0)
+print(out$acceptx, digits = 3)
+@
 Looks o.~k.\ now.
 
 Inspection of autocorrelation functions for components
@@ -740,59 +585,40 @@ of \verb@out$ibatch@ (not shown) says batch length needs to be at least
 Because this run takes longer than CRAN vingettes are supposed to
 take, we save the results to a file
 and load the results from this file if it already exists.
-\begin{Schunk}
-\begin{Sinput}
-> lout <- suppressWarnings(try(load("bfst2.rda"), silent = TRUE))
-> if (inherits(lout, "try-error")) {
-+     out <- temper(out, blen = 10 * out$blen, log.pseudo.prior = qux)
-+     save(out, file = "bfst2.rda")
-+ } else {
-+     .Random.seed <- out$final.seed
-+ }
-> time.save <- rbind(time.save, out$time, deparse.level = 0)
-> foo <- apply(time.save, 2, sum)
-> foo.min <- floor(foo[1] / 60)
-> foo.sec <- foo[1] - 60 * foo.min
-> c(foo.min, foo.sec)
-\end{Sinput}
-\begin{Soutput}
-user.self user.self 
-    5.000    36.795 
-\end{Soutput}
-\end{Schunk}
+<<try6>>=
+lout <- suppressWarnings(try(load("bfst2.rda"), silent = TRUE))
+if (inherits(lout, "try-error")) {
+    out <- temper(out, blen = 10 * out$blen, log.pseudo.prior = qux)
+    save(out, file = "bfst2.rda")
+} else {
+    .Random.seed <- out$final.seed
+}
+time.save <- rbind(time.save, out$time, deparse.level = 0)
+foo <- apply(time.save, 2, sum)
+foo.min <- floor(foo[1] / 60)
+foo.sec <- foo[1] - 60 * foo.min
+c(foo.min, foo.sec)
+@
 The total time for all runs of the temper function was
-5 minutes and 36.8 seconds.
+\Sexpr{foo.min} minutes and \Sexpr{round(foo.sec, 1)} seconds.
 
 \subsection{Bayes Factor Calculations}
 
 Now we calculate log 10 Bayes factors relative to the model with the highest
 unnormalized Bayes factor.
-\begin{Schunk}
-\begin{Sinput}
-> log.10.unnorm.bayes <- (qux - log(colMeans(out$ibatch))) / log(10)
-> k <- seq(along = log.10.unnorm.bayes)[log.10.unnorm.bayes
-+     == min(log.10.unnorm.bayes)]
-> models[k, ]
-\end{Sinput}
-\begin{Soutput}
-x1 x2 x3 x4 
- 1  1  0  1 
-\end{Soutput}
-\begin{Sinput}
-> log.10.bayes <- log.10.unnorm.bayes - log.10.unnorm.bayes[k]
-> log.10.bayes
-\end{Sinput}
-\begin{Soutput}
- [1] 8.17814103 4.17098637 6.33069128 4.05292216 1.80254545
- [6] 0.67203156 1.40468558 0.70498671 2.58875400 1.93202268
-[11] 2.82341431 2.37170521 0.08004553 0.00000000 0.37357715
-[16] 0.35242443
-\end{Soutput}
-\end{Schunk}
+<<doit>>=
+log.10.unnorm.bayes <- (qux - log(colMeans(out$ibatch))) / log(10)
+k <- seq(along = log.10.unnorm.bayes)[log.10.unnorm.bayes
+    == min(log.10.unnorm.bayes)]
+models[k, ]
+
+log.10.bayes <- log.10.unnorm.bayes - log.10.unnorm.bayes[k]
+log.10.bayes
+@
 These are base 10 logarithms of the Bayes factors against the $k$-th
-model where $k = 14$.  For example, the Bayes factor for the $k$-th
+model where $k = \Sexpr{k}$.  For example, the Bayes factor for the $k$-th
 model divided by the Bayes factor for the first model is
-$10^{8.178}$.
+$10^{\Sexpr{round(log.10.bayes[1], 3)}}$.
 
 Now we calculate Monte Carlo standard errors two different ways.  One is
 the way the delta method is usually taught.  To simplify notation, denote
@@ -820,45 +646,17 @@ derivatives
    & =
    0, \qquad \text{$j \neq i$ and $j \neq k$}
 \end{align*}
-\begin{Schunk}
-\begin{Sinput}
-> fred <- var(out$ibatch) / out$nbatch
-> sally <- colMeans(out$ibatch)
-> mcse.log.10.bayes <- (1 / log(10)) * sqrt(diag(fred) / sally^2 -
-+     2 * fred[ , k] / (sally * sally[k]) +
-+     fred[k, k] / sally[k]^2)
-> mcse.log.10.bayes
-\end{Sinput}
-\begin{Soutput}
- [1] 0.02297789 0.02297554 0.02427784 0.02466045 0.02124325
- [6] 0.01925444 0.02381757 0.02289809 0.02190834 0.01983693
-[11] 0.02293685 0.02213382 0.01753144 0.00000000 0.02146088
-[16] 0.01857454
-\end{Soutput}
-\begin{Sinput}
-> foompter <- cbind(models, log.10.bayes, mcse.log.10.bayes)
-> round(foompter, 5)
-\end{Sinput}
-\begin{Soutput}
-      x1 x2 x3 x4 log.10.bayes mcse.log.10.bayes
- [1,]  0  0  0  0      8.17814           0.02298
- [2,]  0  0  0  1      4.17099           0.02298
- [3,]  0  0  1  0      6.33069           0.02428
- [4,]  0  0  1  1      4.05292           0.02466
- [5,]  0  1  0  0      1.80255           0.02124
- [6,]  0  1  0  1      0.67203           0.01925
- [7,]  0  1  1  0      1.40469           0.02382
- [8,]  0  1  1  1      0.70499           0.02290
- [9,]  1  0  0  0      2.58875           0.02191
-[10,]  1  0  0  1      1.93202           0.01984
-[11,]  1  0  1  0      2.82341           0.02294
-[12,]  1  0  1  1      2.37171           0.02213
-[13,]  1  1  0  0      0.08005           0.01753
-[14,]  1  1  0  1      0.00000           0.00000
-[15,]  1  1  1  0      0.37358           0.02146
-[16,]  1  1  1  1      0.35242           0.01857
-\end{Soutput}
-\end{Schunk}
+<<doit-se-one>>=
+fred <- var(out$ibatch) / out$nbatch
+sally <- colMeans(out$ibatch)
+mcse.log.10.bayes <- (1 / log(10)) * sqrt(diag(fred) / sally^2 -
+    2 * fred[ , k] / (sally * sally[k]) +
+    fred[k, k] / sally[k]^2)
+mcse.log.10.bayes
+
+foompter <- cbind(models, log.10.bayes, mcse.log.10.bayes)
+round(foompter, 5)
+@
 
 An alternative calculation of the MCSE replaces the actual function
 of the raw Bayes factors with its best linear approximation
@@ -867,19 +665,14 @@ $$
    - \frac{\hat{b}_k - b_k}{b_k} \right)
 $$
 and calculates the standard deviation of this quantity by batch means
-\begin{Schunk}
-\begin{Sinput}
-> ibar <- colMeans(out$ibatch)
-> herman <- sweep(out$ibatch, 2, ibar, "/")
-> herman <- sweep(herman, 1, herman[ , k], "-")
-> mcse.log.10.bayes.too <- (1 / log(10)) *
-+     apply(herman, 2, sd) /sqrt(out$nbatch)
-> all.equal(mcse.log.10.bayes, mcse.log.10.bayes.too)
-\end{Sinput}
-\begin{Soutput}
-[1] TRUE
-\end{Soutput}
-\end{Schunk}
+<<doit-too>>=
+ibar <- colMeans(out$ibatch)
+herman <- sweep(out$ibatch, 2, ibar, "/")
+herman <- sweep(herman, 1, herman[ , k], "-")
+mcse.log.10.bayes.too <- (1 / log(10)) *
+    apply(herman, 2, sd) /sqrt(out$nbatch)
+all.equal(mcse.log.10.bayes, mcse.log.10.bayes.too)
+@
 
 \section{Discussion}
 

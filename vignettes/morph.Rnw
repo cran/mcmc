@@ -15,11 +15,14 @@
 
 % \VignetteIndexEntry{MCMC Morph Example}
 
-\usepackage{/home/geyer/local/current/lib64/R/share/texmf/tex/latex/Sweave}
 \begin{document}
 
+<<foo,include=FALSE,echo=FALSE>>=
+options(keep.source = TRUE, width = 60)
+foo <- packageDescription("mcmc")
+@
 
-\title{Morphometric MCMC (mcmc Package Ver.~0.9)}
+\title{Morphometric MCMC (mcmc Package Ver.~\Sexpr{foo$Version})}
 % $ (Just to make emacs syntax highlighting work properly)
 \author{Leif T. Johnson \and Charles J. Geyer}
 \maketitle
@@ -92,31 +95,24 @@ Metropolis random-walk will be geometrically ergodic.
 
 Passing a positive value for \texttt{b} to \texttt{morph} function will
 create the aforementioned transformation, $h_2$.  It's as simple as
-\begin{Schunk}
-\begin{Sinput}
-> library(mcmc)
-> h2 <- morph(b=1)
-\end{Sinput}
-\end{Schunk}
+<<>>=
+library(mcmc)
+h2 <- morph(b=1)
+@
 We can now see the induced density.  Note that \texttt{morph} works for
 log unnormalized densities, so we need exponentiate the induced density to
 plot it on the usual scale.
-\begin{Schunk}
-\begin{Sinput}
-> lud <- function(x) dt(x, df=3, log=TRUE)
-> lud.induced <- h2$lud(lud)
-\end{Sinput}
-\end{Schunk}
+<<>>=
+lud <- function(x) dt(x, df=3, log=TRUE)
+lud.induced <- h2$lud(lud)
+@
 We can plot the two densities,
-\begin{Schunk}
-\begin{Sinput}
-> curve(exp(Vectorize(lud.induced)(x)), from = -3, to = 3, lty = 2,
-+     xlab = "t", ylab = "density")
-> curve(exp(lud(x)), add = TRUE)
-> legend("topright", c("t density", "induced density"), lty=1:2)
-\end{Sinput}
-\end{Schunk}
-\includegraphics{morph-004}
+<<fig=TRUE>>=
+curve(exp(Vectorize(lud.induced)(x)), from = -3, to = 3, lty = 2,
+    xlab = "t", ylab = "density")
+curve(exp(lud(x)), add = TRUE)
+legend("topright", c("t density", "induced density"), lty=1:2)
+@
 
 The \texttt{Vectorize} in this example is necessary because
 the function \texttt{lud.induced} is not vectorized.
@@ -124,40 +120,14 @@ Instead, it treats any vector passed as a single input, which
 is rescaled (using the specified diffeomorphism) and passed to
 \texttt{lud}.  Compare the behavior of \texttt{lud} and
 \texttt{lud.induced} in the following example.
-\begin{Schunk}
-\begin{Sinput}
-> lud(1:4)
-\end{Sinput}
-\begin{Soutput}
-[1] -1.576253 -2.695485 -3.773478 -4.692542
-\end{Soutput}
-\begin{Sinput}
-> lud(1)
-\end{Sinput}
-\begin{Soutput}
-[1] -1.576253
-\end{Soutput}
-\begin{Sinput}
-> foo <- try(lud.induced(1:4))
-> class(foo)
-\end{Sinput}
-\begin{Soutput}
-[1] "try-error"
-\end{Soutput}
-\begin{Sinput}
-> cat(foo, "\n")
-\end{Sinput}
-\begin{Soutput}
-Error in lud.induced(1:4) : 
-  log unnormalized density function returned vector not scalar
-\end{Soutput}
-\begin{Sinput}
-> lud.induced(1)
-\end{Sinput}
-\begin{Soutput}
-[1] -1.479686
-\end{Soutput}
-\end{Schunk}
+<<>>=
+lud(1:4)
+lud(1)
+foo <- try(lud.induced(1:4))
+class(foo)
+cat(foo, "\n")
+lud.induced(1)
+@
 Because the function \texttt{dt} is vectorized, the function \texttt{lud}
 is also vectorized, mapping vectors to vectors,
 whereas the function \texttt{lud.induced} is not vectorized,
@@ -165,60 +135,46 @@ mapping vectors to scalars.
 
 Before we start using random numbers, we set the seed of the random number
 generator so this document always produces the same results.
-\begin{Schunk}
-\begin{Sinput}
-> set.seed(42)
-\end{Sinput}
-\end{Schunk}
+<<set-seed>>=
+set.seed(42)
+@
 To change the results, change the seed or delete the \texttt{set.seed}
 statement.
 
 Running a Markov chain for the induced density is done with
 \texttt{morph.metrop}.
-\begin{Schunk}
-\begin{Sinput}
-> out <- morph.metrop(lud, 0, blen=100, nbatch=100, morph=morph(b=1))
-\end{Sinput}
-\end{Schunk}
+<<>>=
+out <- morph.metrop(lud, 0, blen=100, nbatch=100, morph=morph(b=1))
+@
 The content of \texttt{out\$batch} is on the scale of used by
 \texttt{lud}.  Once the transformation has been set, no adjustment is
 needed (unless you want to change transformations).  We start by adjusting
 the scale.
-\begin{Schunk}
-\begin{Sinput}
-> # adjust scale to find a roughly 20% acceptance rate
-> out$accept
-\end{Sinput}
-\begin{Soutput}
-[1] 0.6309
-\end{Soutput}
-\end{Schunk}
-An acceptance rate of 63.1\%
+<<>>=
+# adjust scale to find a roughly 20% acceptance rate
+out$accept
+@
+An acceptance rate of \Sexpr{round(100 * out$accept, 1)}\%
 %$ to fix emacs highlighting
 is probably too high.  By increasing the scale of the proposal distribution
 we can bring it down towards 20\%.
-\begin{Schunk}
-\begin{Sinput}
-> out <- morph.metrop(out, scale=4)
-> out$accept
-\end{Sinput}
-\begin{Soutput}
-[1] 0.2339
-\end{Soutput}
-\end{Schunk}
+<<>>=
+out <- morph.metrop(out, scale=4)
+out$accept
+@
 We now use this Markov chain to estimate the expectation of the target
 distribution.
 But first we need to check whether our batch length is good.
 The following code
-\begin{Schunk}
-\begin{Sinput}
-> acf(out$batch)
-\end{Sinput}
-\end{Schunk}
+<<label=fig0too,include=FALSE>>=
+acf(out$batch)
+@
 makes the autocorrelation plot (Figure~\ref{fig:fig0}).
 \begin{figure}
 \begin{center}
-\includegraphics{morph-fig0}
+<<label=fig0,fig=TRUE,echo=FALSE>>=
+<<fig0too>>
+@
 \end{center}
 \caption{Autocorrelation plot for the sequence of batch means.}
 \label{fig:fig0}
@@ -228,38 +184,14 @@ so the following produces a valid confidence interval for the true
 unknown mean of the target distribution (since this is a toy problem
 we actually know the true ``unknown'' mean is zero, but we pretend we
 don't know that for the purposes of the toy problem)
-\begin{Schunk}
-\begin{Sinput}
-> t.test(out$batch)
-\end{Sinput}
-\begin{Soutput}
-	One Sample t-test
-
-data:  out$batch 
-t = 1.3684, df = 99, p-value = 0.1743
-alternative hypothesis: true mean is not equal to 0 
-95 percent confidence interval:
- -0.02565067  0.13963647 
-sample estimates:
-mean of x 
-0.0569929 
-\end{Soutput}
-\end{Schunk}
+<<>>=
+t.test(out$batch)
+@
 If we want a point estimate and a Monte Carlo standard error, those are
-\begin{Schunk}
-\begin{Sinput}
-> colMeans(out$batch)
-\end{Sinput}
-\begin{Soutput}
-[1] 0.0569929
-\end{Soutput}
-\begin{Sinput}
-> apply(out$batch, 2, sd) / sqrt(out$nbatch)
-\end{Sinput}
-\begin{Soutput}
-[1] 0.04165047
-\end{Soutput}
-\end{Schunk}
+<<>>=
+colMeans(out$batch)
+apply(out$batch, 2, sd) / sqrt(out$nbatch)
+@
 If a shorter confidence interval is desired, the Markov chain can be run
 longer (increase either the number of batches or the batch length, or both).
 
@@ -286,65 +218,45 @@ We will consider two different estimation methods.
 \end{enumerate}
 
 For the former, we need to adjust the scale.
-\begin{Schunk}
-\begin{Sinput}
-> out.unmorph <- metrop(lud, 0, blen=1000, nbatch=1)
-> out.unmorph$accept
-\end{Sinput}
-\begin{Soutput}
-[1] 0.755
-\end{Soutput}
-\begin{Sinput}
-> out.unmorph <- metrop(out.unmorph, scale=4)
-> out.unmorph$accept
-\end{Sinput}
-\begin{Soutput}
-[1] 0.325
-\end{Soutput}
-\begin{Sinput}
-> out.unmorph <- metrop(out.unmorph, scale=6)
-> out.unmorph$accept
-\end{Sinput}
-\begin{Soutput}
-[1] 0.255
-\end{Soutput}
-\end{Schunk}
+<<unmorph-metrop-adjust>>=
+out.unmorph <- metrop(lud, 0, blen=1000, nbatch=1)
+out.unmorph$accept
+out.unmorph <- metrop(out.unmorph, scale=4)
+out.unmorph$accept
+out.unmorph <- metrop(out.unmorph, scale=6)
+out.unmorph$accept
+@
 A scale of 6 appears to be about right.  Now we do a long run for
 this sampler.
 Because this run takes longer than CRAN vingettes are supposed to
 take, we save the results to a file
 and load the results from this file if it already exists.
-\begin{Schunk}
-\begin{Sinput}
-> lout <- suppressWarnings(try(load("morph1.rda"), silent = TRUE))
-> if (inherits(lout, "try-error")) {
-+     out.unmorph <- metrop(out.unmorph, blen = 1e5, nbatch = 1e3)
-+     save(out.unmorph, file = "morph1.rda")
-+ } else {
-+     .Random.seed <- out.unmorph$final.seed
-+ }
-> out.unmorph$accept
-\end{Sinput}
-\begin{Soutput}
-[1] 0.2579452
-\end{Soutput}
-\end{Schunk}
+<<unmorph-metrop-t-long-run>>=
+lout <- suppressWarnings(try(load("morph1.rda"), silent = TRUE))
+if (inherits(lout, "try-error")) {
+    out.unmorph <- metrop(out.unmorph, blen = 1e5, nbatch = 1e3)
+    save(out.unmorph, file = "morph1.rda")
+} else {
+    .Random.seed <- out.unmorph$final.seed
+}
+out.unmorph$accept
+@
 
 Let's look at the distribution of batch means.
 The following code
-\begin{Schunk}
-\begin{Sinput}
-> foo <- as.vector(out.unmorph$batch)
-> qqnorm(foo)
-> qqline(foo)
-\end{Sinput}
-\end{Schunk}
+<<label=fig4too,include=FALSE>>=
+foo <- as.vector(out.unmorph$batch)
+qqnorm(foo)
+qqline(foo)
+@
 makes a Q-Q plot of the batch means (Figure~\ref{fig:fig4}).
 \begin{figure}
 \begin{center}
-\includegraphics{morph-fig4}
+<<label=fig4,fig=TRUE,echo=FALSE>>=
+<<fig4too>>
+@
 \end{center}
-\caption{Q-Q plot of batch means (batch length 1e+05)
+\caption{Q-Q plot of batch means (batch length \Sexpr{out.unmorph$blen})
 for the unmorphed chain.}
 \label{fig:fig4}
 \end{figure}
@@ -352,66 +264,45 @@ We see bad behavior of the unmorphed chain.  These batch means
 (or at least some batch means for sufficiently long batch length) should
 look normally distributed, and these don't.  Not even close.
 We do a formal test just to check our interpretation of the plot
-\begin{Schunk}
-\begin{Sinput}
-> shapiro.test(foo)
-\end{Sinput}
-\begin{Soutput}
-	Shapiro-Wilk normality test
-
-data:  foo 
-W = 0.9325, p-value < 2.2e-16
-\end{Soutput}
-\end{Schunk}
+<<shapiro-wilk>>=
+shapiro.test(foo)
+@
 
 Now for comparison, we check the morphed chain.
-\begin{Schunk}
-\begin{Sinput}
-> lout <- suppressWarnings(try(load("morph2.rda"), silent = TRUE))
-> if (inherits(lout, "try-error")) {
-+     out.morph <- morph.metrop(out, blen = 1e5, nbatch = 1e3)
-+     save(out.morph, file = "morph2.rda")
-+ } else {
-+     .Random.seed <- out.morph$final.seed
-+ }
-> out.morph$accept
-\end{Sinput}
-\begin{Soutput}
-[1] 0.2271819
-\end{Soutput}
-\end{Schunk}
+<<morph-metrop-t-long-run>>=
+lout <- suppressWarnings(try(load("morph2.rda"), silent = TRUE))
+if (inherits(lout, "try-error")) {
+    out.morph <- morph.metrop(out, blen = 1e5, nbatch = 1e3)
+    save(out.morph, file = "morph2.rda")
+} else {
+    .Random.seed <- out.morph$final.seed
+}
+out.morph$accept
+@
 
 The following code
-\begin{Schunk}
-\begin{Sinput}
-> foo <- as.vector(out.morph$batch)
-> qqnorm(foo)
-> qqline(foo)
-\end{Sinput}
-\end{Schunk}
+<<label=fig5too,include=FALSE>>=
+foo <- as.vector(out.morph$batch)
+qqnorm(foo)
+qqline(foo)
+@
 makes a Q-Q plot of the batch means (Figure~\ref{fig:fig5}).
 \begin{figure}
 \begin{center}
-\includegraphics{morph-fig5}
+<<label=fig5,fig=TRUE,echo=FALSE>>=
+<<fig5too>>
+@
 \end{center}
-\caption{Q-Q plot of batch means (batch length 1e+05)
+\caption{Q-Q plot of batch means (batch length \Sexpr{out.unmorph$blen})
 for the morphed chain.}
 \label{fig:fig5}
 \end{figure}
 We see good behavior of the morphed chain.  These batch means do
 look normally distributed.
 We do a formal test just to check our interpretation of the plot
-\begin{Schunk}
-\begin{Sinput}
-> shapiro.test(foo)
-\end{Sinput}
-\begin{Soutput}
-	Shapiro-Wilk normality test
-
-data:  foo 
-W = 0.999, p-value = 0.8822
-\end{Soutput}
-\end{Schunk}
+<<shapiro-wilk>>=
+shapiro.test(foo)
+@
 
 \section{Binomial Distribution with a Conjugate Prior}
 
@@ -467,129 +358,80 @@ posterior density is
 \end{equation}
 This can be computed with a very simple \texttt{R} function, we implement
 it in log form.
-\begin{Schunk}
-\begin{Sinput}
-> lud.binom <- function(beta, M, x, n) {
-+   MB <- M %*% beta
-+   sum(x * MB) - sum(n * log(1 + exp(MB)))
-+ }
-\end{Sinput}
-\end{Schunk}
+<<def-posterior-binom>>=
+lud.binom <- function(beta, M, x, n) {
+  MB <- M %*% beta
+  sum(x * MB) - sum(n * log(1 + exp(MB)))
+}
+@
 
 Now that we have a function to calculate a log-unnormalized posterior
 density, we can run the Markov chain.  To that, we need the model matrix.
 First we convert the \texttt{UCAdmissions} data to a \texttt{data.frame}.
-\begin{Schunk}
-\begin{Sinput}
-> dat <- as.data.frame(UCBAdmissions)
-> dat.split <- split(dat, dat$Admit)
-> dat.split <- lapply(dat.split,
-+                     function(d) {
-+                       val <- as.character(d$Admit[1])
-+                       d["Admit"] <- NULL
-+                       names(d)[names(d) == "Freq"] <- val
-+                       d
-+                     })
-> dat <- merge(dat.split[[1]], dat.split[[2]])
-\end{Sinput}
-\end{Schunk}
+<<convert>>=
+dat <- as.data.frame(UCBAdmissions)
+dat.split <- split(dat, dat$Admit)
+dat.split <- lapply(dat.split,
+                    function(d) {
+                      val <- as.character(d$Admit[1])
+                      d["Admit"] <- NULL
+                      names(d)[names(d) == "Freq"] <- val
+                      d
+                    })
+dat <- merge(dat.split[[1]], dat.split[[2]])
+@
 
 Next we build the model matrix.  Our model specification allows for an
 interaction between gender and department, even though our prior assumes
 that they are independent.
-\begin{Schunk}
-\begin{Sinput}
-> formula <- cbind(Admitted, Rejected) ~ (Gender + Dept)^2
-> mf <- model.frame(formula, dat)
-> M <- model.matrix(formula, mf)
-\end{Sinput}
-\end{Schunk}
+<<build-model-matrix>>=
+formula <- cbind(Admitted, Rejected) ~ (Gender + Dept)^2
+mf <- model.frame(formula, dat)
+M <- model.matrix(formula, mf)
+@
 
 As stated above, we will take $\nu = 5$ and $\xi=0.30$.  That is, we will
 add 5 students to each gender-department combination, where each
 combination has a 30\% acceptance rate.
-\begin{Schunk}
-\begin{Sinput}
-> xi <- 0.30
-> nu <- 5
-\end{Sinput}
-\end{Schunk}
+<<>>=
+xi <- 0.30
+nu <- 5
+@
 
-\begin{Schunk}
-\begin{Sinput}
-> lud.berkeley <- function(B)
-+   lud.binom(B, M, dat$Admitted + xi * nu, dat$Admitted + dat$Rejected + nu)
-\end{Sinput}
-\end{Schunk}
+<<lud-binom>>=
+lud.berkeley <- function(B)
+  lud.binom(B, M, dat$Admitted + xi * nu, dat$Admitted + dat$Rejected + nu)
+@
 
 This function is suitable for passing to \texttt{metrop} or
 \texttt{morph.metrop}.  We know that using \texttt{morph.metrop} with
 \texttt{morph=morph(p=3)} will run a geometrically ergodic Markov chain
 \citep{johnson-geyer}.
-\begin{Schunk}
-\begin{Sinput}
-> berkeley.out <- morph.metrop(lud.berkeley, rep(0, ncol(M)), blen=1000,
-+                              nbatch=1, scale=0.1, morph=morph(p=3))
-> berkeley.out$accept
-\end{Sinput}
-\begin{Soutput}
-[1] 0.022
-\end{Soutput}
-\begin{Sinput}
-> berkeley.out <- morph.metrop(berkeley.out, scale=0.05)
-> berkeley.out$accept
-\end{Sinput}
-\begin{Soutput}
-[1] 0.021
-\end{Soutput}
-\begin{Sinput}
-> berkeley.out <- morph.metrop(berkeley.out, scale=0.02)
-> berkeley.out$accept
-\end{Sinput}
-\begin{Soutput}
-[1] 0.19
-\end{Soutput}
-\begin{Sinput}
-> berkeley.out <- morph.metrop(berkeley.out, blen=10000)
-> berkeley.out$accept
-\end{Sinput}
-\begin{Soutput}
-[1] 0.198
-\end{Soutput}
-\end{Schunk}
+<<>>=
+berkeley.out <- morph.metrop(lud.berkeley, rep(0, ncol(M)), blen=1000,
+                             nbatch=1, scale=0.1, morph=morph(p=3))
+berkeley.out$accept
+berkeley.out <- morph.metrop(berkeley.out, scale=0.05)
+berkeley.out$accept
+berkeley.out <- morph.metrop(berkeley.out, scale=0.02)
+berkeley.out$accept
+berkeley.out <- morph.metrop(berkeley.out, blen=10000)
+berkeley.out$accept
+@
 
-\begin{Schunk}
-\begin{Sinput}
-> berkeley.out <- morph.metrop(berkeley.out, blen=1, nbatch=100000)
-\end{Sinput}
-\end{Schunk}
+<<>>=
+berkeley.out <- morph.metrop(berkeley.out, blen=1, nbatch=100000)
+@
 
 Estimate the posterior mean acceptance probabilities for each
 gender-department combination.
-\begin{Schunk}
-\begin{Sinput}
-> beta <- setNames(colMeans(berkeley.out$batch), colnames(M))
-> MB <- M %*% beta
-> dat$p <- dat$Admitted / (dat$Admitted + dat$Rejected)
-> dat$p.post <- exp(MB) / (1 + exp(MB))
-> dat
-\end{Sinput}
-\begin{Soutput}
-   Gender Dept Admitted Rejected          p     p.post
-1  Female    A       89       19 0.82407407 0.79703538
-2  Female    B       17        8 0.68000000 0.62207720
-3  Female    C      202      391 0.34064081 0.33998737
-4  Female    D      131      244 0.34933333 0.34931647
-5  Female    E       94      299 0.23918575 0.23986587
-6  Female    F       24      317 0.07038123 0.07334591
-7    Male    A      512      313 0.62060606 0.61829688
-8    Male    B      353      207 0.63035714 0.62826885
-9    Male    C      120      205 0.36923077 0.36859752
-10   Male    D      138      279 0.33093525 0.32924029
-11   Male    E       53      138 0.27748691 0.27517306
-12   Male    F       22      351 0.05898123 0.06024604
-\end{Soutput}
-\end{Schunk}
+<<>>=
+beta <- setNames(colMeans(berkeley.out$batch), colnames(M))
+MB <- M %*% beta
+dat$p <- dat$Admitted / (dat$Admitted + dat$Rejected)
+dat$p.post <- exp(MB) / (1 + exp(MB))
+dat
+@
 The small difference between the data and posterior probabilities is
 expected, our prior was given very little weight.  Using
 \texttt{morph.metrop} with the setting \texttt{morph=morph(p=3)} in this
@@ -605,21 +447,19 @@ gender-department combination.  From these we can see that for each
 department, there is considerable overlap of the distributions of
 probabilities for males and females.
 
-\begin{Schunk}
-\begin{Sinput}
-> posterior.probabilities <-
-+   t(apply(berkeley.out$batch, 1,
-+           function(r) {
-+             eMB <- exp(M %*% r)
-+             eMB / (1 + eMB)
-+           }))
-> quants <- apply(posterior.probabilities, 2, quantile, prob=c(0.05, 0.95))
-> quants.str <- matrix(apply(quants, 2,
-+                            function(r) sprintf("[%0.2f, %0.2f]", r[1], r[2])),
-+                      nrow=2, byrow=TRUE)
-> 
-\end{Sinput}
-\end{Schunk}
+<<calculate-posterior-probabilities>>=
+posterior.probabilities <-
+  t(apply(berkeley.out$batch, 1,
+          function(r) {
+            eMB <- exp(M %*% r)
+            eMB / (1 + eMB)
+          }))
+quants <- apply(posterior.probabilities, 2, quantile, prob=c(0.05, 0.95))
+quants.str <- matrix(apply(quants, 2,
+                           function(r) sprintf("[%0.2f, %0.2f]", r[1], r[2])),
+                     nrow=2, byrow=TRUE)
+
+@
 
 \begin{table}[ht]
   \caption{5\% and 95\% posterior quantiles for admittance probability
@@ -629,8 +469,8 @@ probabilities for males and females.
   \hline
  Gender & Dept. A & Dept. B & Dept. C & Dept. D & Dept. E. & Dept. F \\
  \hline
- Female & [0.73, 0.85] & [0.46, 0.77] & [0.31, 0.37] & [0.31, 0.39] & [0.21, 0.28] & [0.05, 0.10] \\
- Male & [0.59, 0.65] & [0.59, 0.66] & [0.33, 0.41] & [0.29, 0.37] & [0.23, 0.33] & [0.04, 0.08] \\
+ Female & \Sexpr{paste(quants.str[1, 1:6], collapse=" & ")} \\
+ Male & \Sexpr{paste(quants.str[2, 1:6], collapse=" & ")} \\
  \hline
 \end{tabular}
 \label{tab:post-quant}
@@ -639,7 +479,17 @@ probabilities for males and females.
 
 \begin{figure}
 \begin{center}
-\includegraphics{morph-fig1}
+<<label=fig1,fig=TRUE,echo=FALSE>>=
+x <- (0:5) * 2 + 1
+plot(x[c(1, 6)] + 0.5 * c(-1, 1), 0:1,
+     xlab="Department", ylab="Probability", xaxt="n", type="n")
+axis(1, x, LETTERS[1:6])
+for(i in 1:6) {
+  lines((x[i]-0.25)*c(1, 1), quants[1:2, i], lwd=2, col="gray")
+  lines((x[i] + 0.25) * c(1, 1), quants[1:2, i + 6], lwd=2, col="gray")
+  points(x[i] + 0.25 * c(-1, 1), dat$p.post[i + c(0, 6)], pch=c("F", "M"))
+}
+@
 \end{center}
 \caption{Posterior 5\% and 95\% quantiles and mean, by department and gender.}
 \label{fig:posterior-probs}
@@ -652,19 +502,13 @@ We are going to do a Cauchy location-scale family objective Bayesianly.
 \subsection{Data}
 
 First we generate some data.
-\begin{Schunk}
-\begin{Sinput}
-> n <- 15
-> mu0 <- 50
-> sigma0 <- 10
-> x <- rcauchy(n, mu0, sigma0)
-> round(sort(x), 1)
-\end{Sinput}
-\begin{Soutput}
- [1] -226.4    8.2   34.3   39.8   42.1   46.7   52.7   52.9
- [9]   55.1   55.5   58.3   60.7   98.8  129.4  149.8
-\end{Soutput}
-\end{Schunk}
+<<cauchy-data>>=
+n <- 15
+mu0 <- 50
+sigma0 <- 10
+x <- rcauchy(n, mu0, sigma0)
+round(sort(x), 1)
+@
 \texttt{mu0} and \texttt{sigma0} are the true unknown parameter values
 (since the data are simulated we actually know these ``unknown'' parameter
 values, but we must pretend we don't know them and estimate them).
@@ -684,76 +528,52 @@ standard prior that comes from the group invariance argument
 \subsection{Log Unnormalized Posterior}
 
 We need a function whose argument is a two-vector
-\begin{Schunk}
-\begin{Sinput}
-> lup <- function(theta) {
-+     if (any(is.na(theta)))
-+         stop("NA or NaN in input to log unnormalized density function")
-+     mu <- theta[1]
-+     sigma <- theta[2]
-+     if (sigma <= 0) return(-Inf)
-+     if (any(! is.finite(theta))) return(-Inf)
-+     result <- sum(dcauchy(x, mu, sigma, log = TRUE)) - log(sigma)
-+     if (! is.finite(result)) {
-+         warning(paste("Oops!  mu = ", mu, "and sigma =", sigma))
-+     }
-+     return(result)
-+ }
-\end{Sinput}
-\end{Schunk}
+<<cauchy-log-unnormalized-posterior>>=
+lup <- function(theta) {
+    if (any(is.na(theta)))
+        stop("NA or NaN in input to log unnormalized density function")
+    mu <- theta[1]
+    sigma <- theta[2]
+    if (sigma <= 0) return(-Inf)
+    if (any(! is.finite(theta))) return(-Inf)
+    result <- sum(dcauchy(x, mu, sigma, log = TRUE)) - log(sigma)
+    if (! is.finite(result)) {
+        warning(paste("Oops!  mu = ", mu, "and sigma =", sigma))
+    }
+    return(result)
+}
+@
 
 \subsection{Laplace Approximation}
 
 To have some idea what we are doing, we first maximize the log unnormalized
 posterior.  To do it helps to have good starting points for the optimization.
 Robust estimators of location and scale are
-\begin{Schunk}
-\begin{Sinput}
-> mu.twiddle <- median(x)
-> sigma.twiddle <- IQR(x)
-> c(mu.twiddle, sigma.twiddle)
-\end{Sinput}
-\begin{Soutput}
-[1] 52.92081 18.57544
-\end{Soutput}
-\end{Schunk}
+<<cauchy-robust>>=
+mu.twiddle <- median(x)
+sigma.twiddle <- IQR(x)
+c(mu.twiddle, sigma.twiddle)
+@
 The posterior mode is
-\begin{Schunk}
-\begin{Sinput}
-> oout <- optim(c(mu.twiddle, sigma.twiddle), lup,
-+     control = list(fnscale = -1), hessian = TRUE)
-> stopifnot(oout$convergence == 0)
-> mu.hat <- oout$par[1]
-> sigma.hat <- oout$par[2]
-> c(mu.hat, sigma.hat)
-\end{Sinput}
-\begin{Soutput}
-[1] 52.212013  9.581221
-\end{Soutput}
-\end{Schunk}
+<<cauchy-posterior-mode>>=
+oout <- optim(c(mu.twiddle, sigma.twiddle), lup,
+    control = list(fnscale = -1), hessian = TRUE)
+stopifnot(oout$convergence == 0)
+mu.hat <- oout$par[1]
+sigma.hat <- oout$par[2]
+c(mu.hat, sigma.hat)
+@
 and the hessian evaluated at the posterior mode (calculated by
 \texttt{optim} using finite differences) is
-\begin{Schunk}
-\begin{Sinput}
-> oout$hessian
-\end{Sinput}
-\begin{Soutput}
-            [,1]        [,2]
-[1,] -0.08357941 -0.01845386
-[2,] -0.01845386 -0.06892637
-\end{Soutput}
-\end{Schunk}
+<<cauchy-hessian>>=
+oout$hessian
+@
 The hessian is nearly diagonal and one can check that theoretically
 is exactly diagonal.  Thus approximate (asymptotic) posterior standard
 deviations are
-\begin{Schunk}
-\begin{Sinput}
-> sqrt(- 1 / diag(oout$hessian))
-\end{Sinput}
-\begin{Soutput}
-[1] 3.458998 3.808968
-\end{Soutput}
-\end{Schunk}
+<<cauchy-se>>=
+sqrt(- 1 / diag(oout$hessian))
+@
 
 \subsection{Theory}
 
@@ -774,33 +594,26 @@ function, even though the theory that motivates them does not hold.
 
 We want to center the transformation at the posterior mode, and use a
 radius $r$ that doesn't transform until several approximate standard deviations
-\begin{Schunk}
-\begin{Sinput}
-> moo <- morph(b = 0.5, r = 7, center = c(mu.hat, sigma.hat))
-> mout <- morph.metrop(lup, c(mu.hat, sigma.hat), 1e4,
-+     scale = 3, morph = moo)
-> mout$accept
-\end{Sinput}
-\begin{Soutput}
-[1] 0.4407
-\end{Soutput}
-\begin{Sinput}
-> mout <- morph.metrop(mout)
-\end{Sinput}
-\end{Schunk}
+<<cauchy-doit>>=
+moo <- morph(b = 0.5, r = 7, center = c(mu.hat, sigma.hat))
+mout <- morph.metrop(lup, c(mu.hat, sigma.hat), 1e4,
+    scale = 3, morph = moo)
+mout$accept
+mout <- morph.metrop(mout)
+@
 Good enough.  An attempt to increase the scale led to error when the
 transformation functions overflowed.  Can't take steps too big with this
 stuff.
 The following code
-\begin{Schunk}
-\begin{Sinput}
-> acf(mout$batch)
-\end{Sinput}
-\end{Schunk}
+<<label=cfig1too,include=FALSE>>=
+acf(mout$batch)
+@
 makes an autocorrelation plot (Figure~\ref{fig:cfig1}).
 \begin{figure}
 \begin{center}
-\includegraphics{morph-cfig1}
+<<label=cfig1,fig=TRUE,echo=FALSE>>=
+<<cfig1too>>
+@
 \end{center}
 \caption{Autocorrelation plot.  First component is $\mu$, second is $\sigma$.}
 \label{fig:cfig1}
@@ -815,19 +628,19 @@ data.  Thus we feed it subsampled, nearly uncorrelated data to select
 the bandwidth and then use that bandwidth on the full data.  Here's
 how that works.
 The following code
-\begin{Schunk}
-\begin{Sinput}
-> mu <- mout$batch[ , 1]
-> i <- seq(1, mout$nbatch, by = 15)
-> out.sub <- density(mu[i])
-> out <- density(mu, bw = out.sub$bw)
-> plot(out)
-\end{Sinput}
-\end{Schunk}
+<<label=cfig2too,include=FALSE>>=
+mu <- mout$batch[ , 1]
+i <- seq(1, mout$nbatch, by = 15)
+out.sub <- density(mu[i])
+out <- density(mu, bw = out.sub$bw)
+plot(out)
+@
 makes the density plot (Figure~\ref{fig:cfig2}).
 \begin{figure}
 \begin{center}
-\includegraphics{morph-cfig2}
+<<label=cfig2,fig=TRUE,echo=FALSE>>=
+<<cfig2too>>
+@
 \end{center}
 \caption{Density plot for the marginal posterior for $\mu$.}
 \label{fig:cfig2}
@@ -835,7 +648,12 @@ makes the density plot (Figure~\ref{fig:cfig2}).
 And a similar plot for $\sigma$ (Figure~\ref{fig:cfig3})
 \begin{figure}
 \begin{center}
-\includegraphics{morph-cfig3}
+<<label=cfig3,fig=TRUE,echo=FALSE>>=
+sigma <- mout$batch[ , 2]
+out.sub <- density(sigma[i])
+out <- density(sigma, bw = out.sub$bw)
+plot(out)
+@
 \end{center}
 \caption{Density plot for the marginal posterior for $\sigma$.}
 \label{fig:cfig3}

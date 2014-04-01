@@ -5,9 +5,12 @@
 
 % \VignetteIndexEntry{Debugging MCMC Code}
 
-\usepackage{/home/geyer/local/current/lib64/R/share/texmf/tex/latex/Sweave}
 \begin{document}
 
+<<foo,include=FALSE,echo=FALSE>>=
+options(keep.source = TRUE, width = 60)
+foo <- packageDescription("mcmc")
+@
 
 \title{Debugging MCMC Code}
 \author{Charles J. Geyer}
@@ -16,7 +19,7 @@
 \section{Introduction}
 
 This document discusses debugging Markov chain Monte Carlo code
-using the R contributed package \texttt{mcmc} (Version 0.9)
+using the R contributed package \texttt{mcmc} (Version \Sexpr{foo$Version})
 for examples.  It also documents the debugging output of the functions
 \texttt{mcmc} and \texttt{temper}.
 
