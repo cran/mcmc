@@ -6,14 +6,18 @@ UseMethod("temper")
 temper.tempering <- function(obj, initial, neighbors, nbatch, blen = 1,
     nspac = 1, scale = 1, outfun, debug = FALSE, parallel = FALSE, ...)
 {
-    if (missing(initial)) initial <- obj$final
-    if (missing(neighbors)) neighbors <- obj$neighbors
+    # like metrop, ignore initial argument
+    initial <- obj$final
+    # makes no (at least little?) sense to change neighbor structure
+    neighbors <- obj$neighbors
     if (missing(nbatch)) nbatch <- obj$nbatch
     if (missing(blen)) blen <- obj$blen
     if (missing(nspac)) nspac <- obj$nspac
     if (missing(scale)) scale <- obj$scale
     if (missing(debug)) debug <- obj$debug
-    if (missing(parallel)) parallel <- obj$parallel
+    # makes no sense to change from parallel to serial or vice versa
+    # size and shape of state wouldn't even be the same
+    parallel <- obj$parallel
     assign(".Random.seed", obj$final.seed, .GlobalEnv)
     if (missing(outfun)) {
         if (is.null(obj$outfun)) {
@@ -35,14 +39,18 @@ temper.function <- function(obj, initial, neighbors, nbatch, blen = 1,
 {
     if (! exists(".Random.seed")) runif(1)
     saveseed <- .Random.seed
+    obj <- cmpfun(obj)
     func1 <- function(state) obj(state, ...)
+    func1 <- cmpfun(func1)
     env1 <- environment(fun = func1)
     if (missing(outfun)) {
         func2 <- NULL
         env2 <- NULL
         outfun <- NULL
     } else if (is.function(outfun)) {
+        outfun <- cmpfun(outfun)
         func2 <- function(state) outfun(state, ...)
+        func2 <- cmpfun(func2)
         env2 <- environment(fun = func2)
     }
 
@@ -60,10 +68,10 @@ temper.function <- function(obj, initial, neighbors, nbatch, blen = 1,
     }
 
     out.time <- system.time(
-    out <- .Call("temper", func1, initial, neighbors, nbatch, blen, nspac,
-        scale, func2, debug, parallel, env1, env2, PACKAGE = "mcmc")
+    out <- .Call(C_temper, func1, initial, neighbors, nbatch, blen, nspac,
+        scale, func2, debug, parallel, env1, env2)
     )
-    result <- structure(c(list(lud = obj, initial = initial,
+    result <- structure(c(list(lud = obj,
         neighbors = neighbors, nbatch = nbatch, blen = blen, nspac = nspac,
         scale = scale, outfun = outfun, debug = debug, parallel = parallel,
         initial.seed = saveseed, final.seed = .Random.seed, time = out.time),
