@@ -5,7 +5,6 @@
 ### code chunk number 1: foo
 ###################################################
 options(keep.source = TRUE, width = 60)
-foo <- packageDescription("mcmc")
 
 
 ###################################################
@@ -14,17 +13,14 @@ foo <- packageDescription("mcmc")
 library(mcmc)
 data(logit)
 out <- glm(y ~ x1 + x2 + x3 + x4, data = logit,
-    family = binomial(), x = TRUE)
+    family = binomial, x = TRUE)
 summary(out)
 
 
 ###################################################
 ### code chunk number 3: log.unnormalized.posterior
 ###################################################
-x <- out$x
-y <- out$y
-
-lupost <- function(beta, x, y) {
+lupost_factory <- function(x, y) function(beta) {
     eta <- as.numeric(x %*% beta)
     logp <- ifelse(eta < 0, eta - log1p(exp(eta)), - log1p(exp(- eta)))
     logq <- ifelse(eta < 0, - log1p(exp(eta)), - eta - log1p(exp(- eta)))
@@ -32,13 +28,16 @@ lupost <- function(beta, x, y) {
     return(logl - sum(beta^2) / 8)
 }
 
+lupost <- lupost_factory(out$x, out$y)
+
 
 ###################################################
 ### code chunk number 4: metropolis-try-1
 ###################################################
 set.seed(42)    # to get reproducible results
 beta.init <- as.numeric(coefficients(out))
-out <- metrop(lupost, beta.init, 1e3, x = x, y = y)
+
+out <- metrop(lupost, beta.init, 1e3)
 names(out)
 out$accept
 
@@ -46,21 +45,21 @@ out$accept
 ###################################################
 ### code chunk number 5: metropolis-try-2
 ###################################################
-out <- metrop(out, scale = 0.1, x = x, y = y)
+out <- metrop(out, scale = 0.1)
 out$accept
-out <- metrop(out, scale = 0.3, x = x, y = y)
+out <- metrop(out, scale = 0.3)
 out$accept
-out <- metrop(out, scale = 0.5, x = x, y = y)
+out <- metrop(out, scale = 0.5)
 out$accept
-out <- metrop(out, scale = 0.4, x = x, y = y)
+out <- metrop(out, scale = 0.4)
 out$accept
 
 
 ###################################################
 ### code chunk number 6: metropolis-try-3
 ###################################################
-out <- metrop(out, nbatch = 1e4, x = x, y = y)
-out$accept
+out <- metrop(out, nbatch = 1e4)
+t.test(out$accept.batch)$conf.int
 out$time
 
 
@@ -91,9 +90,9 @@ acf(out$batch)
 ###################################################
 ### code chunk number 11: metropolis-try-4
 ###################################################
-out <- metrop(out, nbatch = 1e2, blen = 100,
-    outfun = function(z, ...) c(z, z^2), x = x, y = y)
-out$accept
+out <- metrop(out, nbatch = 100, blen = 100,
+    outfun = function(z) c(z, z^2))
+t.test(out$accept.batch)$conf.int
 out$time
 
 
@@ -153,8 +152,8 @@ sigma.mcse
 ###################################################
 ### code chunk number 18: metropolis-try-5
 ###################################################
-out <- metrop(out, nbatch = 5e2, blen = 400, x = x, y = y)
-out$accept
+out <- metrop(out, nbatch = 500, blen = 400)
+t.test(out$accept.batch)$conf.int
 out$time
 foo <- apply(out$batch, 2, mean)
 mu <- foo[1:5]
@@ -292,5 +291,108 @@ bout$var.con * blen
 ###################################################
 mean(x) + c(-1, 1) * qnorm(0.975) * sqrt(out$var.con / length(x))
 mean(x.batch) + c(-1, 1) * qnorm(0.975) * sqrt(bout$var.con / length(x.batch))
+
+
+###################################################
+### code chunk number 32: log.unnormalized.posterior-dot-dot-dot
+###################################################
+lupost <- function(beta, x, y) {
+     eta <- as.numeric(x %*% beta)
+     logp <- ifelse(eta < 0, eta - log1p(exp(eta)), - log1p(exp(- eta)))
+     logq <- ifelse(eta < 0, - log1p(exp(eta)), - eta - log1p(exp(- eta)))
+     logl <- sum(logp[y == 1]) + sum(logq[y == 0])
+     return(logl - sum(beta^2) / 8)
+}
+
+
+###################################################
+### code chunk number 33: metropolis-try-dot-dot-dot
+###################################################
+out <- glm(y ~ x1 + x2 + x3 + x4, data = logit,
+    family = binomial, x = TRUE)
+x <- out$x
+y <- out$y
+
+out <- metrop(lupost, beta.init, 1e3, x = x, y = y)
+out$accept
+out <- metrop(out, scale = 0.1, x = x, y = y)
+out$accept
+out <- metrop(out, scale = 0.3, x = x, y = y)
+out$accept
+out <- metrop(out, scale = 0.5, x = x, y = y)
+out$accept
+out <- metrop(out, scale = 0.4, x = x, y = y)
+out$accept
+
+
+###################################################
+### code chunk number 34: outfun-dot-dot-dot
+###################################################
+outfun <- function(z, ...) c(z, z^2)
+
+
+###################################################
+### code chunk number 35: outfun-try-dot-dot-dot
+###################################################
+out <- metrop(out, nbatch = 100, blen = 100, outfun = outfun,
+    x = x, y = y)
+out$accept
+
+
+###################################################
+### code chunk number 36: functions-global
+###################################################
+lupost <- function(beta) {
+     eta <- as.numeric(x %*% beta)
+     logp <- ifelse(eta < 0, eta - log1p(exp(eta)), - log1p(exp(- eta)))
+     logq <- ifelse(eta < 0, - log1p(exp(eta)), - eta - log1p(exp(- eta)))
+     logl <- sum(logp[y == 1]) + sum(logq[y == 0])
+     return(logl - sum(beta^2) / 8)
+}
+outfun <- function(z) c(z, z^2)
+
+
+###################################################
+### code chunk number 37: doit-global
+###################################################
+out <- metrop(lupost, beta.init, 1e3)
+out$accept
+out <- metrop(out, scale = 0.1)
+out$accept
+out <- metrop(out, scale = 0.3)
+out$accept
+out <- metrop(out, scale = 0.5)
+out$accept
+out <- metrop(out, scale = 0.4)
+out$accept
+out <- metrop(out, nbatch = 100, blen = 100, outfun = outfun)
+out$accept
+
+
+###################################################
+### code chunk number 38: fred
+###################################################
+fred <- function(y) function(x) x + y
+fred(2)(3)
+
+
+###################################################
+### code chunk number 39: currying
+###################################################
+lupost_factory <- function(x, y) function(beta) {
+    eta <- as.numeric(x %*% beta)
+    logp <- ifelse(eta < 0, eta - log1p(exp(eta)), - log1p(exp(- eta)))
+    logq <- ifelse(eta < 0, - log1p(exp(eta)), - eta - log1p(exp(- eta)))
+    logl <- sum(logp[y == 1]) + sum(logq[y == 0])
+    return(logl - sum(beta^2) / 8)
+}
+lupost <- lupost_factory(x, y)
+lupost(beta.init)
+
+
+###################################################
+### code chunk number 40: currying-too
+###################################################
+lupost_factory(x, y)(beta.init)
 
 
