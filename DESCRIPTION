@@ -1,10 +1,10 @@
 Package: mcmc
-Version: 0.9-6
+Version: 0.9-6.1
 Date: 2019-03-09
 Title: Markov Chain Monte Carlo
 Author: Charles J. Geyer <charlie@stat.umn.edu> and Leif T. Johnson
      <ltjohnson@google.com>
-Maintainer: Charles J. Geyer <charlie@stat.umn.edu>
+Maintainer: ORPHANED
 Depends: R (>= 3.0.2)
 Imports: stats
 Suggests: xtable, Iso
@@ -21,6 +21,9 @@ License: MIT + file LICENSE
 URL: http://www.stat.umn.edu/geyer/mcmc/,
         https://github.com/cjgeyer/mcmc
 NeedsCompilation: yes
-Packaged: 2019-03-10 02:10:55 UTC; geyer
+Packaged: 2020-02-16 13:09:09 UTC; ripley
 Repository: CRAN
-Date/Publication: 2019-03-10 07:20:03 UTC
+Date/Publication: 2020-02-16 18:29:14 UTC
+X-CRAN-Original-Maintainer: Charles J. Geyer <charlie@stat.umn.edu>
+X-CRAN-Comment: Orphaned and corrected on 2020-02-16 as there was no
+        response to repeated requests.

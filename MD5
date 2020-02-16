@@ -1,5 +1,5 @@
 6f63a591d614f44a8aa7ffbd7674d0a8 *ChangeLog
-f9163f5e759f04a28b7161e3aa3dde31 *DESCRIPTION
+c8e8177e7b67d58d79e9a0e6f224ccdd *DESCRIPTION
 66e0aaa6082a6fa8bd0f666e544a98b0 *LICENSE
 3ce192959d88fa7b864f4f7e9c3d1a9c *NAMESPACE
 155b2ace5476c068fb4814b8425a47ce *R/initseq.R
@@ -52,12 +52,12 @@ f67bdf45f0c4f15f6d0479720f8a265a *src/olbm.c
 38d56fcfbd5127790b8002affff4ca58 *tests/accept-batch.Rout.save
 30579f6813cad807b8c301897da45de6 *tests/circle.R
 b1d6d5e55c62aaa9f331659161fceba1 *tests/circle.Rout.save
-e7781d93db17c14e65dd9afee5af1dad *tests/initseq.R
-086ea1cdd4092988cfb7f8c43f24a596 *tests/initseq.Rout.save
+69a223dfcd84709426840121dfa70f94 *tests/initseq.R
+8babc69333bb10c4fb25810183622321 *tests/initseq.Rout.save
 01f734e085fc75dc37615d76381f9568 *tests/isotropic.R
 7b1a10898e9abe34fab48f6c43aa51a3 *tests/isotropic.Rout.save
-ced46ef84ed611b440a653bae2b25805 *tests/logit.R
-fbed3c07f389f3d184457e82098b4057 *tests/logit.Rout.save
+c6a8f5547b61859c6b25f4534163e416 *tests/logit.R
+c4c0936a3a5c46c5333ed5ee38e224a2 *tests/logit.Rout.save
 0fde60fa5097a775ee157fff16d2a59e *tests/logitbat.R
 e8a16c5b726f225061edc5757e6595c1 *tests/logitbat.Rout.save
 0a1fc457e1b2ab0216488c9666be211e *tests/logitfun.R
