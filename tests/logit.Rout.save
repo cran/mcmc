@@ -1,5 +1,5 @@
 
-R Under development (unstable) (2020-02-16 r77809) -- "Unsuffered Consequences"
+R version 3.6.3 (2020-02-29) -- "Holding the Windsock"
 Copyright (C) 2020 The R Foundation for Statistical Computing
 Platform: x86_64-pc-linux-gnu (64-bit)
 
@@ -178,4 +178,4 @@ Current iterate is probably solution.
 > 
 > proc.time()
    user  system elapsed 
-  0.750   0.077   0.812 
+  0.326   0.027   0.343 
