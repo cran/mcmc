@@ -1,5 +1,4 @@
 ### R code from vignette source 'demo.Rnw'
-### Encoding: UTF-8
 
 ###################################################
 ### code chunk number 1: foo
